@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Operations Console · Shopnonir Somobai Somitee</title>
+  <link rel="icon" href="/ops-assets/favicon.png" />
+  <link rel="stylesheet" href="/ops-assets/lucide.css" />
+  <link rel="stylesheet" href="/ops-assets/ops.css" />
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <span class="orb orb-maroon"></span>
+    <span class="orb orb-gold"></span>
+    <span class="grid-lines"></span>
+  </div>
+
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="/" aria-label="Operations console home">
+        <span class="brand-mark" aria-hidden="true">
+          <i class="icon icon-notebook-text"></i>
+        </span>
+        <span class="brand-text">
+          <strong>Shopnonir Somobai Somitee</strong>
+          <small>Backend Operations Console</small>
+        </span>
+      </a>
+
+      <div class="topbar-actions">
+        <span class="pill pill-live" id="pulse-pill" title="Polling /api/health">
+          <span class="pulse-dot" id="pulse-dot"></span>
+          <span class="pulse-label" id="pulse-label">Connecting</span>
+          <span class="pulse-latency" id="pulse-latency">—</span>
+        </span>
+
+        <span class="pill pill-env" id="env-pill" title="Detected runtime mode">
+          <i class="icon icon-globe icon-xs" aria-hidden="true"></i>
+          <span id="env-pill-label">Detecting…</span>
+        </span>
+
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme" title="Toggle theme">
+          <i class="icon icon-sun" aria-hidden="true"></i>
+          <i class="icon icon-moon" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <!-- HERO -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">
+          <span class="eyebrow-line"></span>
+          System status
+        </p>
+        <h1 id="hero-title" class="hero-title">
+          <span id="hero-status-text">Initializing console</span>
+          <span class="hero-shimmer" aria-hidden="true"></span>
+        </h1>
+        <p class="hero-sub" id="hero-status-sub">Running diagnostics against the live API and MongoDB Atlas cluster…</p>
+
+        <div class="db-card" id="db-card">
+          <div class="db-icon" aria-hidden="true">
+            <i class="icon icon-database"></i>
+          </div>
+          <div class="db-meta">
+            <p class="db-name">MongoDB Atlas</p>
+            <p class="db-detail" id="db-detail">Awaiting handshake…</p>
+          </div>
+          <span class="chip chip-pending" id="db-chip">CHECKING</span>
+        </div>
+
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <span class="hero-stat-label">Environment</span>
+            <span class="hero-stat-value" id="hero-env">—</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-label">Database</span>
+            <span class="hero-stat-value" id="hero-db">—</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-label">API latency</span>
+            <span class="hero-stat-value" id="hero-latency">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        <div class="radar" id="radar">
+          <span class="radar-ring radar-ring-1"></span>
+          <span class="radar-ring radar-ring-2"></span>
+          <span class="radar-ring radar-ring-3"></span>
+          <span class="radar-sweep"></span>
+          <span class="radar-core"></span>
+        </div>
+        <div class="radar-caption">
+          <span class="radar-mode" id="radar-mode">DETECTING</span>
+          <span class="radar-mode-sub" id="radar-mode-sub">runtime environment</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SYSTEM TELEMETRY -->
+    <section class="section" aria-labelledby="telemetry-title">
+      <div class="section-head">
+        <h2 id="telemetry-title">Server telemetry</h2>
+        <p>Live process and host metrics, refreshed every 5 seconds.</p>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="kpi">
+          <div class="kpi-top">
+            <span class="kpi-icon kpi-icon-maroon" aria-hidden="true">
+              <i class="icon icon-clock" aria-hidden="true"></i>
+            </span>
+            <span class="kpi-label">Uptime</span>
+          </div>
+          <p class="kpi-value" id="kpi-uptime">—</p>
+          <p class="kpi-sub" id="kpi-uptime-sub">process runtime</p>
+        </article>
+
+        <article class="kpi">
+          <div class="kpi-top">
+            <span class="kpi-icon kpi-icon-gold" aria-hidden="true">
+              <i class="icon icon-shield-check" aria-hidden="true"></i>
+            </span>
+            <span class="kpi-label">Node.js</span>
+          </div>
+          <p class="kpi-value" id="kpi-node">—</p>
+          <p class="kpi-sub" id="kpi-node-sub">runtime version</p>
+        </article>
+
+        <article class="kpi">
+          <div class="kpi-top">
+            <span class="kpi-icon kpi-icon-maroon" aria-hidden="true">
+              <i class="icon icon-table" aria-hidden="true"></i>
+            </span>
+            <span class="kpi-label">Memory</span>
+          </div>
+          <p class="kpi-value" id="kpi-mem">—</p>
+          <div class="meter" role="img" aria-label="Heap usage">
+            <span class="meter-fill" id="kpi-mem-bar" style="width:0%"></span>
+          </div>
+          <p class="kpi-sub" id="kpi-mem-sub">heap usage</p>
+        </article>
+
+        <article class="kpi">
+          <div class="kpi-top">
+            <span class="kpi-icon kpi-icon-gold" aria-hidden="true">
+              <i class="icon icon-calendar" aria-hidden="true"></i>
+            </span>
+            <span class="kpi-label">Server time</span>
+          </div>
+          <p class="kpi-value kpi-value-mono" id="kpi-clock">—</p>
+          <p class="kpi-sub" id="kpi-clock-sub">local clock</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- CLIENT TELEMETRY -->
+    <section class="section" aria-labelledby="client-title">
+      <div class="section-head">
+        <h2 id="client-title">Client telemetry</h2>
+        <p>Detected live from this browser session.</p>
+      </div>
+
+      <div class="client-grid">
+        <article class="client-card">
+          <span class="client-label">Screen resolution</span>
+          <span class="client-value" id="client-screen">—</span>
+          <span class="client-sub" id="client-dpr">device pixel ratio —</span>
+        </article>
+        <article class="client-card">
+          <span class="client-label">Logical CPU cores</span>
+          <span class="client-value" id="client-cores">—</span>
+          <span class="client-sub">navigator.hardwareConcurrency</span>
+        </article>
+        <article class="client-card">
+          <span class="client-label">Client IP</span>
+          <span class="client-value client-value-mono" id="client-ip">—</span>
+          <span class="client-sub" id="client-ua">—</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- API DIRECTORY -->
+    <section class="section" aria-labelledby="api-title">
+      <div class="section-head">
+        <h2 id="api-title">API directory</h2>
+        <p>Primary endpoints exposed by this service.</p>
+      </div>
+
+      <div class="api-grid">
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/health</span>
+          <span class="api-desc">Lightweight liveness probe</span>
+          <span class="api-auth">public</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/system</span>
+          <span class="api-desc">Full system telemetry</span>
+          <span class="api-auth">public</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-post">POST</span>
+          <span class="api-path">/api/auth/login</span>
+          <span class="api-desc">Authenticate a user</span>
+          <span class="api-auth">public</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/auth/me</span>
+          <span class="api-desc">Current session profile</span>
+          <span class="api-auth">auth</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/dashboard</span>
+          <span class="api-desc">Cooperative KPI summary</span>
+          <span class="api-auth">staff</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/members</span>
+          <span class="api-desc">Member registry</span>
+          <span class="api-auth">staff</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/savings/transactions</span>
+          <span class="api-desc">Savings ledger entries</span>
+          <span class="api-auth">staff</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/savings/dues</span>
+          <span class="api-desc">Fixed savings dues</span>
+          <span class="api-auth">staff</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/approvals</span>
+          <span class="api-desc">Approval queue</span>
+          <span class="api-auth">approver</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/expenses</span>
+          <span class="api-desc">Expense workflow</span>
+          <span class="api-auth">staff</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/ledger</span>
+          <span class="api-desc">Double-entry journal</span>
+          <span class="api-auth">finance</span>
+        </div>
+        <div class="api-item">
+          <span class="method method-get">GET</span>
+          <span class="api-path">/api/documents</span>
+          <span class="api-desc">Document vault</span>
+          <span class="api-auth">staff</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- DIAGNOSTICS -->
+    <section class="section" aria-labelledby="diag-title">
+      <div class="section-head">
+        <h2 id="diag-title">Diagnostics</h2>
+        <p>Copy-ready probe commands and the live health payload.</p>
+      </div>
+
+      <div class="diag-grid">
+        <div class="code-panel">
+          <div class="code-head">
+            <span class="code-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="code-title">curl</span>
+            <button type="button" class="copy-btn" data-copy-target="curl-code" aria-label="Copy curl command">
+              <i class="icon icon-copy" aria-hidden="true"></i>
+              <span>Copy</span>
+            </button>
+          </div>
+          <pre class="code-body"><code id="curl-code"><span class="cmd-comment"># full telemetry</span>
+curl -s <span class="curl-origin">http://localhost:4000</span>/api/system
+
+<span class="cmd-comment"># lightweight health probe</span>
+curl -s <span class="curl-origin">http://localhost:4000</span>/api/health</code></pre>
+        </div>
+
+        <div class="code-panel">
+          <div class="code-head">
+            <span class="code-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="code-title">JSON · /api/health</span>
+            <button type="button" class="copy-btn" data-copy-target="json-code" aria-label="Copy JSON health response">
+              <i class="icon icon-copy" aria-hidden="true"></i>
+              <span>Copy</span>
+            </button>
+          </div>
+          <pre class="code-body code-body-scroll"><code id="json-code">{
+  "success": true,
+  "data": { "status": "loading…" }
+}</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Shopnonir Somobai Somitee · Operations Console</span>
+      <span class="footer-meta">
+        <span id="footer-mode">mode: detecting</span>
+        <span class="dot-sep">·</span>
+        <span id="footer-version">node —</span>
+      </span>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/ops-assets/ops.js" defer></script>
+</body>
+</html>

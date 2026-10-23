@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Environment files - NEVER commit these!
+.env
+.env.local
+.env.*.local
+
+# Production env example (safe to commit)
+# .env.production.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Build output
+dist/
+build/
+
+# Uploads (runtime generated)
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/

@@ -1,0 +1,33 @@
+/* Lucide icon font (CSS subset) — ISC License — https://lucide.dev */
+@font-face {
+  font-family: 'lucide';
+  src: url('/ops-assets/lucide.woff2') format('woff2');
+  font-style: normal;
+  font-weight: normal;
+  font-display: block;
+}
+
+.icon {
+  font-family: 'lucide', sans-serif;
+  font-size: inherit;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+  text-transform: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-notebook-text::before { content: "\e598"; }
+.icon-globe::before { content: "\e0e8"; }
+.icon-sun::before { content: "\e178"; }
+.icon-moon::before { content: "\e11e"; }
+.icon-database::before { content: "\e0ad"; }
+.icon-clock::before { content: "\e087"; }
+.icon-shield-check::before { content: "\e1ff"; }
+.icon-table::before { content: "\e17d"; }
+.icon-calendar::before { content: "\e063"; }
+.icon-copy::before { content: "\e09e"; }
