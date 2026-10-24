@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getLang } from './i18n';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export class ApiError extends Error {
   constructor(status, code, message, details) {
