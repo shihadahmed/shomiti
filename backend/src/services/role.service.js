@@ -104,18 +104,6 @@ export async function updateRole(roleId, payload, actor, req) {
     throw ApiError.notFound('Role not found.', 'ROLE_NOT_FOUND');
   }
 
-  if (role.isSystemLocked) {
-    // Only allow permission updates for system roles, not name/description
-    const allowedUpdates = ['permissions'];
-    const restrictedFields = Object.keys(payload).filter(key => !allowedUpdates.includes(key));
-    if (restrictedFields.length > 0) {
-      throw ApiError.forbidden(
-        `Cannot modify ${restrictedFields.join(', ')} for system-locked roles.`,
-        'SYSTEM_ROLE_PROTECTED'
-      );
-    }
-  }
-
   // Prevent renaming to a system role name
   if (payload.name && payload.name !== role.name) {
     const reservedNames = ['super_admin', 'president', 'general_secretary', 'treasurer', 'member'];
@@ -165,10 +153,6 @@ export async function deleteRole(roleId, actor, req) {
   const role = await Role.findById(roleId);
   if (!role) {
     throw ApiError.notFound('Role not found.', 'ROLE_NOT_FOUND');
-  }
-
-  if (role.isSystemLocked) {
-    throw ApiError.forbidden('Cannot delete system-locked roles.', 'SYSTEM_ROLE_PROTECTED');
   }
 
   // Check if any users are assigned this role
