@@ -33,6 +33,7 @@ export const useAuthStore = create(
       isLoading: false,
       isAuthenticated: false,
       error: null,
+      lastSessionFetch: 0,
 
       login: async (identifier, password, rememberMe = false) => {
         set({ isLoading: true, error: null });
@@ -75,7 +76,17 @@ export const useAuthStore = create(
       },
 
       loadSession: async () => {
-        set({ isLoading: true });
+        // Prevent multiple simultaneous calls
+        if (get().isLoading) return;
+
+        const now = Date.now();
+        const lastFetch = get().lastSessionFetch || 0;
+        if (now - lastFetch < 5000 && get().user) {
+          // Return cached session if less than 5 seconds old
+          return;
+        }
+
+        set({ isLoading: true, lastSessionFetch: now });
         try {
           const res = await apiClient.get('/auth/me', undefined, { skipAuthRedirect: true });
           const payload = res.data?.data || {};

@@ -21,6 +21,9 @@ export const FINANCE_ROLES = Object.freeze([ROLES.SUPER_ADMIN, ROLES.TREASURER])
 /** Roles allowed to approve pending requests (must be a different user than requester). */
 export const APPROVER_ROLES = Object.freeze([ROLES.SUPER_ADMIN, ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT]);
 
+/** Executive roles (can assign executive roles to others) */
+export const EXECUTIVE_ROLES = Object.freeze([ROLES.SUPER_ADMIN, ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT]);
+
 export const MEMBER_STATUS = Object.freeze({
   ACTIVE: 'active',
   INACTIVE: 'inactive',
@@ -291,6 +294,17 @@ export const PERMISSION_CATEGORIES = Object.freeze([
       { key: 'reports.view_financial', label: { en: 'View Financial Reports', bn: 'আর্থিক রিপোর্ট দেখুন' }, description: { en: 'View collection, dues, expense reports', bn: 'আদায়, বকেয়া, ব্যয় রিপোর্ট দেখুন' } },
       { key: 'reports.export', label: { en: 'Export CSV/PDF', bn: 'CSV/PDF এক্সপোর্ট' }, description: { en: 'Export reports to CSV or PDF', bn: 'রিপোর্ট CSV বা PDF-এ এক্সপোর্ট' } },
       { key: 'reports.audit_logs', label: { en: 'View System Audit Logs', bn: 'সিস্টেম অডিট লগ দেখুন' }, description: { en: 'View security audit trail', bn: 'নিরাপত্তা অডিট ট্রেইল দেখুন' } },
+    ],
+  },
+  {
+    key: 'roles',
+    label: { en: 'Role Management', bn: 'রোল ব্যবস্থাপনা' },
+    permissions: [
+      { key: 'roles.view', label: { en: 'View Roles', bn: 'রোল দেখুন' }, description: { en: 'View all roles and permissions', bn: 'সব রোল ও পারমিশন দেখুন' } },
+      { key: 'roles.create', label: { en: 'Create Role', bn: 'রোল তৈরি' }, description: { en: 'Create new custom roles', bn: 'নতুন কাস্টম রোল তৈরি' } },
+      { key: 'roles.update', label: { en: 'Update Role', bn: 'রোল আপডেট' }, description: { en: 'Modify role permissions and metadata', bn: 'রোল পারমিশন ও মেটাডেটা পরিবর্তন' } },
+      { key: 'roles.delete', label: { en: 'Delete Role', bn: 'রোল মুছুন' }, description: { en: 'Delete custom roles (not system-locked)', bn: 'কাস্টম রোল মুছুন (সিস্টেম-লকড না)' } },
+      { key: 'roles.assign', label: { en: 'Assign Role', bn: 'রোল অ্যাসাইন' }, description: { en: 'Assign/change roles for users', bn: 'ব্যবহারকারীদের জন্য রোল বাদল/নিযুক্ত করুন' } },
     ],
   },
 ]);

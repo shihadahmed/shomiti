@@ -124,6 +124,17 @@ const PERMISSION_CATEGORIES = [
       { key: 'reports.audit_logs', labelKey: 'perm.reports.audit_logs' },
     ],
   },
+  {
+    key: 'roles',
+    labelKey: 'perm.roles',
+    permissions: [
+      { key: 'roles.view', labelKey: 'perm.roles.view' },
+      { key: 'roles.create', labelKey: 'perm.roles.create' },
+      { key: 'roles.update', labelKey: 'perm.roles.update' },
+      { key: 'roles.delete', labelKey: 'perm.roles.delete' },
+      { key: 'roles.assign', labelKey: 'perm.roles.assign' },
+    ],
+  },
 ];
 
 const ROLE_ICONS = {
@@ -229,6 +240,13 @@ export default function UsersPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const openAddUser = () => {
+    setEditingUser(null);
+    setUserForm({ role: 'member', isActive: true, name: '', email: '', phone: '', memberId: '', password: '' });
+    setUserErrors({});
+    setShowUserModal(true);
+  };
+
   const openEditUser = (user) => {
     if (user._id === currentUser?._id) {
       toast.error(tr('users.cannotEditSelf'));
@@ -243,7 +261,7 @@ export default function UsersPage() {
   const closeUserModal = () => {
     setShowUserModal(false);
     setEditingUser(null);
-    setUserForm({ role: '', isActive: true });
+    setUserForm({ role: 'member', isActive: true, name: '', email: '', phone: '', memberId: '', password: '' });
     setUserErrors({});
   };
 
@@ -251,22 +269,36 @@ export default function UsersPage() {
     e.preventDefault();
     setUserErrors({});
 
-    if (!editingUser) return;
-
     setUserSubmitting(true);
     try {
-      // Update role if changed
-      if (userForm.role !== editingUser.role) {
-        await useApi().then(({ apiPatch }) => apiPatch(`/auth/users/${editingUser._id}/role`, { role: userForm.role }));
-        toast.success(tr('users.roleUpdated'));
-      }
+      if (editingUser) {
+        // Update existing user
+        if (userForm.role !== editingUser.role) {
+          await useApi().then(({ apiPatch }) => apiPatch(`/auth/users/${editingUser._id}/role`, { role: userForm.role }));
+          toast.success(tr('users.roleUpdated'));
+        }
 
-      // Update status if changed
-      if (userForm.isActive !== editingUser.isActive) {
-        await useApi().then(({ apiPatch }) => apiPatch(`/auth/users/${editingUser._id}/status`, { isActive: userForm.isActive }));
-        toast.success(tr('users.statusUpdated'));
+        if (userForm.isActive !== editingUser.isActive) {
+          await useApi().then(({ apiPatch }) => apiPatch(`/auth/users/${editingUser._id}/status`, { isActive: userForm.isActive }));
+          toast.success(tr('users.statusUpdated'));
+        }
+      } else {
+        // Create new user
+        const payload = {
+          name: userForm.name,
+          email: userForm.email,
+          phone: userForm.phone,
+          role: userForm.role,
+          memberId: userForm.memberId || undefined,
+          password: userForm.password || undefined,
+        };
+        const result = await useApi().then(({ apiPost }) => apiPost('/auth/users', payload));
+        if (result.temporaryPassword) {
+          toast.success(tr('users.passwordResetSuccess', { password: result.temporaryPassword }), { duration: 10000 });
+        } else {
+          toast.success(tr('users.created'));
+        }
       }
-
       closeUserModal();
       reloadUsers();
     } catch (requestError) {
@@ -277,6 +309,10 @@ export default function UsersPage() {
         setUserErrors({ submit: tr('users.executiveRoleRestricted') });
       } else if (msg.includes('SELF_SUSPENSION_FORBIDDEN') || msg.includes('own account')) {
         setUserErrors({ submit: tr('users.cannotSuspendSelf') });
+      } else if (msg.includes('MEMBER_REQUIRED') || msg.includes('member')) {
+        setUserErrors({ submit: tr('users.memberRequired') });
+      } else if (msg.includes('LAST_SUPER_ADMIN_PROTECTION')) {
+        setUserErrors({ submit: tr('users.lastSuperAdminProtection') });
       } else {
         setUserErrors({ submit: msg });
       }
@@ -447,14 +483,18 @@ export default function UsersPage() {
   const getStatusBadgeColor = (isActive) => isActive ? 'badge-green' : 'badge-red';
   const getStatusLabel = (isActive) => isActive ? tr('users.statusActive') : tr('users.statusInactive');
 
-  const canEditUser = (userId) => {
+  const canEditUser = (userId, userRole) => {
     if (userId === currentUser?._id) return false;
     if (!isExecutive) return false;
-    if (!isSuperAdmin && EXECUTIVE_ROLES.includes(editingUser?.role)) return false;
+    // Non-super_admin cannot edit executive roles
+    if (!isSuperAdmin && EXECUTIVE_ROLES.includes(userRole)) return false;
     return true;
   };
 
   const canResetPassword = () => isSuperAdmin;
+
+  // Only super_admin can create users
+  const canCreateUser = () => isSuperAdmin;
 
   const metrics = metricsData || {
     totalUsers: 0,
@@ -558,6 +598,13 @@ export default function UsersPage() {
                   </button>
                 )}
               </div>
+              {/* Add User Button - only for super_admin on users tab */}
+              {activeTab === 'users' && canCreateUser() && (
+                <Button variant="primary" onClick={openAddUser} className="ml-3">
+                  <Icon name="plus" className="h-4 w-4" />
+                  {tr('users.add')}
+                </Button>
+              )}
             </div>
           }
         />
@@ -726,7 +773,7 @@ export default function UsersPage() {
                               <span className="hidden sm:inline">{tr('users.resetPassword')}</span>
                             </Button>
                           )}
-                          {canEditUser(user._id) && (
+                          {canEditUser(user._id, user.role) && (
                             <Dropdown
                               trigger={
                                 <Button variant="ghost" size="sm" className="text-brand-600 hover:bg-brand-50">
@@ -888,12 +935,14 @@ export default function UsersPage() {
           currentUserId={currentUser?._id}
           roleOptions={ROLE_OPTIONS}
           tr={tr}
+          canCreateUser={canCreateUser}
+          users={users}
         />
 
         <RoleModal
           open={showRoleModal}
           onClose={closeRoleModal}
-          title={editingRole ? tr('Create A New Role') : tr('Create A New Role')}
+          title={editingRole ? tr('roles.edit') : tr('roles.create')}
           form={roleForm}
           errors={roleErrors}
           onChange={setRoleForm}
@@ -902,7 +951,7 @@ export default function UsersPage() {
           isEdit={!!editingRole}
           isSystemRole={editingRole?.isSystemLocked}
           originalRoleName={editingRole?.name}
-          categories={PERMISSION_CATEGORIES}
+          categories={PERMISSION_CATEGATEGORIES}
           expandedCategories={expandedCategories}
           onToggleCategory={toggleCategory}
           onTogglePermission={togglePermission}
@@ -930,17 +979,21 @@ function UserEditModal({
   currentUserId,
   roleOptions,
   tr,
+  canCreateUser,
+  users,
 }) {
-  if (!open || !user) return null;
+  if (!open) return null;
 
+  const isCreating = !user;
   const availableRoles = isSuperAdmin
     ? roleOptions
     : roleOptions.filter(r => r.value === 'member');
 
-  const isSelf = user._id === currentUserId;
+  // Prevent creating another super_admin if one already exists
+  const superAdminExists = users?.some(u => u.role === 'super_admin' && u.isActive);
 
   return (
-    <Modal isOpen={open} onClose={onClose} title={title} size="md">
+    <Modal isOpen={open} onClose={onClose} title={isCreating ? tr('users.add') : tr('users.editUser')} size="md">
       <form onSubmit={onSubmit} className="space-y-4">
         {errors.submit && (
           <div className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700 flex items-center gap-2">
@@ -951,19 +1004,59 @@ function UserEditModal({
 
         <FormSection title={tr('settings.userDetails')}>
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-xl">
-              <Avatar name={user.name} size="lg" />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-brand-900 truncate">{user.name}</p>
-                <p className="text-sm text-brand-500 font-mono">{user.phone}</p>
-                {user.email && <p className="text-sm text-brand-500 truncate">{user.email}</p>}
-                {user.member && (
-                  <p className="text-xs text-brand-400 mt-1">
-                    {tr('users.memberId')}: <span className="font-mono text-brand-600">{user.member.code}</span>
-                  </p>
-                )}
+            {isCreating && (
+              <>
+                <Input
+                  label={tr('members.fullName')}
+                  value={form.name}
+                  onChange={(e) => onChange({ ...form, name: e.target.value })}
+                  error={errors.name}
+                  required
+                  autoComplete="name"
+                />
+                <Input
+                  label={tr('members.email')}
+                  value={form.email}
+                  onChange={(e) => onChange({ ...form, email: e.target.value })}
+                  error={errors.email}
+                  type="email"
+                  autoComplete="email"
+                />
+                <Input
+                  label={tr('members.phone')}
+                  value={form.phone}
+                  onChange={(e) => onChange({ ...form, phone: e.target.value })}
+                  error={errors.phone}
+                  required
+                  autoComplete="tel"
+                />
+                <Input
+                  label={tr('users.password')}
+                  value={form.password}
+                  onChange={(e) => onChange({ ...form, password: e.target.value })}
+                  error={errors.password}
+                  type="password"
+                  autoComplete="new-password"
+                  hint={tr('password.hint')}
+                />
+              </>
+            )}
+
+            {!isCreating && (
+              <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-xl">
+                <Avatar name={user.name} size="lg" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-brand-900 truncate">{user.name}</p>
+                  <p className="text-sm text-brand-500 font-mono">{user.phone}</p>
+                  {user.email && <p className="text-sm text-brand-500 truncate">{user.email}</p>}
+                  {user.member && (
+                    <p className="text-xs text-brand-400 mt-1">
+                      {tr('users.memberId')}: <span className="font-mono text-brand-600">{user.member.code}</span>
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Select
@@ -971,8 +1064,12 @@ function UserEditModal({
                 value={form.role}
                 onChange={(e) => onChange({ ...form, role: e.target.value })}
                 required
-                options={availableRoles}
-                disabled={isSelf}
+                options={availableRoles.filter(r => {
+                  // Hide super_admin option if one already exists and we're creating
+                  if (isCreating && superAdminExists && r.value === 'super_admin') return false;
+                  return true;
+                })}
+                disabled={isCreating ? false : (user._id === currentUserId)}
               />
               <Select
                 label={tr('users.status')}
@@ -985,18 +1082,22 @@ function UserEditModal({
                   { value: 'suspended', label: tr('users.statusSuspended') },
                   { value: 'resigned', label: tr('users.statusResigned') },
                 ]}
-                disabled={isSelf}
+                disabled={user._id === currentUserId}
               />
             </div>
 
-            {isSelf && (
+            {(user._id === currentUserId || isCreating) && (
               <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 flex items-center gap-2">
                 <Icon name="alert" className="h-4 w-4" />
-                {tr('users.cannotEditSelf')}
+                {isCreating 
+                  ? (superAdminExists && availableRoles.some(r => r.value === 'super_admin') 
+                      ? tr('users.superAdminExists') 
+                      : '')
+                  : tr('users.cannotEditSelf')}
               </div>
             )}
 
-            {!isSuperAdmin && (
+            {!isSuperAdmin && !isCreating && (
               <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 flex items-center gap-2">
                 <Icon name="info" className="h-4 w-4" />
                 Only Super Admin can assign executive roles (President, GS, Treasurer, Super Admin).
@@ -1008,7 +1109,7 @@ function UserEditModal({
         <FormActions>
           <Button type="button" variant="secondary" onClick={onClose}>{tr('common.cancel')}</Button>
           <Button type="submit" variant="primary" loading={submitting} loadingLabel={tr('common.saving')}>
-            {tr('common.save')}
+            {isCreating ? tr('users.add') : tr('common.save')}
           </Button>
         </FormActions>
       </form>

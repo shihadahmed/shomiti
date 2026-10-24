@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
-import { requireRoles } from '../middleware/authorize.js';
+import { requireRoles, requirePermission } from '../middleware/authorize.js';
 import { validate } from '../middleware/validate.js';
 import { loginLimiter } from '../middleware/rateLimit.js';
 import { ROLES } from '../config/constants.js';
@@ -29,11 +29,11 @@ router.post(
   authController.changePassword,
 );
 
-// User Management (Super Admin only)
+// User Management (permission-based)
 router.get(
   '/users',
   authenticate,
-  requireRoles(ROLES.SUPER_ADMIN),
+  requirePermission('roles.view'),
   listUsersQueryRules,
   validate,
   authController.listUsers,
@@ -41,7 +41,7 @@ router.get(
 router.post(
   '/users',
   authenticate,
-  requireRoles(ROLES.SUPER_ADMIN),
+  requirePermission('roles.create'),
   createStaffRules,
   validate,
   authController.createStaff,
@@ -49,7 +49,7 @@ router.post(
 router.patch(
   '/users/:id/role',
   authenticate,
-  requireRoles(ROLES.SUPER_ADMIN),
+  requirePermission('roles.assign'),
   updateUserRoleRules,
   validate,
   authController.updateUserRole,
@@ -57,7 +57,7 @@ router.patch(
 router.patch(
   '/users/:id/status',
   authenticate,
-  requireRoles(ROLES.SUPER_ADMIN, ROLES.TREASURER, ROLES.GENERAL_SECRETARY),
+  requirePermission('roles.assign'),
   updateUserStatusRules,
   validate,
   authController.updateUserStatus,
@@ -65,7 +65,7 @@ router.patch(
 router.post(
   '/users/:id/reset-password',
   authenticate,
-  requireRoles(ROLES.SUPER_ADMIN),
+  requirePermission('roles.assign'),
   idParam,
   resetUserPasswordRules,
   validate,

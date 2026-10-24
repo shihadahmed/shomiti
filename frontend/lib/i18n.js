@@ -677,6 +677,11 @@ const en = {
   'users.executiveRoleRestricted': 'Only Super Admin can assign executive roles.',
   'users.roleChangeLogged': 'Role change has been logged in audit trail.',
   'users.statusChangeLogged': 'Status change has been logged in audit trail.',
+  'users.superAdminExists': 'A Super Admin already exists. Only one Super Admin is allowed.',
+  'users.lastSuperAdminProtection': 'Cannot demote or deactivate the last active Super Admin.',
+  'users.add': 'Add User',
+  'users.created': 'User created successfully.',
+  'users.password': 'Password',
 
   // Users Page - Metric Cards
   'users.totalUsers': 'Total Users',
@@ -805,6 +810,13 @@ const en = {
   'perm.reports.view_financial': 'View Financial Reports',
   'perm.reports.export': 'Export CSV/PDF',
   'perm.reports.audit_logs': 'View System Audit Logs',
+
+  'perm.roles': 'Role Management',
+  'perm.roles.view': 'View Roles',
+  'perm.roles.create': 'Create Role',
+  'perm.roles.update': 'Update Role',
+  'perm.roles.delete': 'Delete Role',
+  'perm.roles.assign': 'Assign Role',
 
   // Admin Dashboard
   'dashboard.adminTitle': 'Admin Dashboard',
@@ -1540,6 +1552,11 @@ const bn = {
   'users.executiveRoleRestricted': 'শুধু সুপার অ্যাডমিন ही কার্যকরী ভূমিকা নির্ধারণ করতে পারেন।',
   'users.roleChangeLogged': 'ভূমিকা পরিবর্তন অডিট ট্রেইলে লগ করা হয়েছে।',
   'users.statusChangeLogged': 'অবস্থা পরিবর্তন অডিট ট্রেইলে লগ করা হয়েছে।',
+  'users.superAdminExists': 'একজন সুপার অ্যাডমিন ইতিমধ্যেই আছে। শুধু একজন সুপার অ্যাডমিন অনুমোদিত।',
+  'users.lastSuperAdminProtection': 'শেষ সক্রিয় সুপার অ্যাডমিনকে ডিমোট বা নিষ্ক্রিয় করা যাবে না।',
+  'users.add': 'ব্যবহারকারী যোগ করুন',
+  'users.created': 'ব্যবহারকারী সফলভাবে তৈরি হয়েছে।',
+  'users.password': 'পাসওয়ার্ড',
 
   // Users Page - Metric Cards
   'users.totalUsers': 'মোট ব্যবহারকারী',
@@ -1668,6 +1685,13 @@ const bn = {
   'perm.reports.view_financial': 'আর্থিক রিপোর্ট দেখুন',
   'perm.reports.export': 'CSV/PDF এক্সপোর্ট',
   'perm.reports.audit_logs': 'সিস্টেম অডিট লগ দেখুন',
+
+  'perm.roles': 'রোল ব্যবস্থাপনা',
+  'perm.roles.view': 'রোল দেখুন',
+  'perm.roles.create': 'রোল তৈরি',
+  'perm.roles.update': 'রোল আপডেট',
+  'perm.roles.delete': 'রোল মুছুন',
+  'perm.roles.assign': 'রোল অ্যাসাইন',
 
   // Admin Dashboard
   'dashboard.adminTitle': 'অ্যাডমিন ড্যাশবোর্ড',

@@ -2,7 +2,21 @@ import Role from '../models/Role.js';
 import User from '../models/User.js';
 import ApiError from '../utils/ApiError.js';
 import { writeAudit } from '../utils/audit.js';
-import { DEFAULT_SYSTEM_ROLES, ALL_PERMISSIONS } from '../config/constants.js';
+import { DEFAULT_SYSTEM_ROLES, ALL_PERMISSIONS, ROLES, STAFF_ROLES } from '../config/constants.js';
+
+/** Check if actor has required permission */
+function requirePermission(actor, permission) {
+  if (!actor.permissions?.includes(permission)) {
+    throw ApiError.forbidden(`Missing required permission: ${permission}`, 'FORBIDDEN');
+  }
+}
+
+/** Check self-protection for super_admin */
+function checkSelfProtection(actor, targetUserId, action) {
+  if (actor._id.toString() === targetUserId.toString()) {
+    throw ApiError.badRequest(`You cannot ${action} your own account.`, 'SELF_PROTECTION');
+  }
+}
 
 /** Initialize default system roles on startup */
 export async function initializeDefaultRoles() {
@@ -69,6 +83,8 @@ export async function listRoles(query = {}) {
 
 /** Create a new custom role */
 export async function createRole(payload, actor, req) {
+  requirePermission(actor, 'roles.create');
+
   const { name, description, permissions = [] } = payload;
 
   const existing = await Role.findOne({ name });
@@ -99,9 +115,16 @@ export async function createRole(payload, actor, req) {
 
 /** Update a role (permissions, name, description) */
 export async function updateRole(roleId, payload, actor, req) {
+  requirePermission(actor, 'roles.update');
+
   const role = await Role.findById(roleId);
   if (!role) {
     throw ApiError.notFound('Role not found.', 'ROLE_NOT_FOUND');
+  }
+
+  // Prevent modifying system-locked roles
+  if (role.isSystemLocked) {
+    throw ApiError.badRequest('Cannot modify system-locked roles.', 'SYSTEM_ROLE_PROTECTED');
   }
 
   // Prevent renaming to a system role name
@@ -150,9 +173,16 @@ export async function updateRole(roleId, payload, actor, req) {
 
 /** Delete a custom role */
 export async function deleteRole(roleId, actor, req) {
+  requirePermission(actor, 'roles.delete');
+
   const role = await Role.findById(roleId);
   if (!role) {
     throw ApiError.notFound('Role not found.', 'ROLE_NOT_FOUND');
+  }
+
+  // Prevent deleting system-locked roles
+  if (role.isSystemLocked) {
+    throw ApiError.badRequest('Cannot delete system-locked roles.', 'SYSTEM_ROLE_PROTECTED');
   }
 
   // Check if any users are assigned this role

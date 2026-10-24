@@ -52,8 +52,22 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 
+/** High-frequency probes — never worth a log line on either side. */
+const QUIET_PATHS = ['/api/health', '/api/system'];
+
 if (config.nodeEnv !== 'test') {
-  app.use(morgan(config.isProduction ? 'combined' : 'dev'));
+  app.use(
+    morgan(config.isProduction ? 'combined' : 'dev', {
+      skip: (req) => {
+        // `req.path` is rewritten by the mounted /api router ("/health"),
+        // so match against the untouched original URL instead.
+        const requestPath = (req.originalUrl || req.url || '').split('?')[0];
+        return QUIET_PATHS.some(
+          (path) => requestPath === path || requestPath.startsWith(`${path}/`),
+        );
+      },
+    }),
+  );
 }
 
 app.use('/api', globalLimiter, requireCustomHeader, routes);

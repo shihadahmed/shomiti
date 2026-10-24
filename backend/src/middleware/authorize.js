@@ -15,6 +15,21 @@ export function requireRoles(...roles) {
   };
 }
 
+/** Allows only users with the specific permission. Must run after authenticate. */
+export function requirePermission(...permissions) {
+  const required = permissions.flat();
+  return (req, _res, next) => {
+    if (!req.user) return next(ApiError.unauthorized());
+    const userPerms = req.user.permissions || [];
+    if (!required.some((p) => userPerms.includes(p))) {
+      return next(
+        ApiError.forbidden(`Missing required permission: ${required.join(' or ')}`, 'FORBIDDEN'),
+      );
+    }
+    return next();
+  };
+}
+
 /** Blocks member-portal accounts from staff endpoints. */
 export function requireStaff(req, _res, next) {
   if (!req.user) return next(ApiError.unauthorized());
@@ -33,4 +48,4 @@ export const requireExpenseApprover = requireRoles(ROLES.SUPER_ADMIN, ROLES.TREA
 /** General approval roles (savings, expenses, etc.) */
 export const requireApprover = requireRoles(ROLES.SUPER_ADMIN, ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT);
 
-export default { requireRoles, requireStaff, requireFinance, requireExpenseApprover, requireApprover };
+export default { requireRoles, requireStaff, requireFinance, requireExpenseApprover, requireApprover, requirePermission };

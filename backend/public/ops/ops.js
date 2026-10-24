@@ -222,8 +222,8 @@
     }
     if (heroSub) {
       heroSub.textContent = operational
-        ? 'The API is responding normally and MongoDB Atlas is reachable. Live metrics below refresh automatically.'
-        : 'The API is reachable but MongoDB Atlas is not responding. Check cluster status and network access rules.';
+        ? 'The API is responding normally and the MongoDB connection is open. Metrics below refresh automatically.'
+        : 'The API is reachable but MongoDB has no active connection. Check cluster status and network access rules.';
     }
 
     /* Pulse */
@@ -259,10 +259,8 @@
       chip.textContent = dbOk ? 'OPERATIONAL' : 'UNAVAILABLE';
     }
     var dbDetail = 'state: ' + (db.state || 'unknown');
-    if (dbOk && Number.isFinite(db.latencyMs)) dbDetail += ' · ping ' + db.latencyMs + ' ms';
-    if (db.cached) dbDetail += ' (cached ' + Math.round((db.cacheAgeMs || 0) / 1000) + 's ago)';
     if (dbOk && db.name) dbDetail += ' · db "' + db.name + '"';
-    if (!dbOk && db.error) dbDetail += ' · ' + db.error;
+    if (!dbOk) dbDetail += ' · no active connection';
     setText('db-detail', dbDetail);
     setText('hero-db', dbOk ? 'Operational' : 'Down');
 
@@ -312,36 +310,47 @@
   }
 
   /* ============================================================
-     Smart polling (adaptive + visibility-aware)
+     Transport: SSE first, polling only as a fallback
+       • SSE connected -> zero polling
+       • SSE down      -> 30 s polling floor, never faster
+       • Tab hidden    -> every timer and the stream are stopped
      ============================================================ */
-  var pollTimer = null;
+  var systemTimer = null;
+  var healthTimer = null;
   var sse = null;
+  var sseRetryTimer = null;
+  var sseOpen = false;
   var isHidden = document.hidden;
   var consecutiveErrors = 0;
-  var lastHealthyAt = null;
 
-  function getPollInterval() {
-    // Fast when unhealthy/recent issues, slow when stable
-    if (!lastHealthyAt) return 5000; // initial fast
-    var sinceHealthy = Date.now() - lastHealthyAt;
-    if (sinceHealthy < 60000) return 5000;  // 5s for 1 min after recovery
-    if (sinceHealthy < 300000) return 15000; // 15s for 5 min
-    return 60000; // 60s when stable
+  var POLL_MIN_MS = 15000;         // absolute floor for fallback polling
+  var POLL_MAX_MS = 30000;         // steady state while SSE is unavailable
+  var HEALTH_INTERVAL_MS = 300000; // static /api/health preview: every 5 min
+  var SSE_RETRY_MS = 30000;
+
+  function clearSystemTimer() {
+    if (systemTimer) { clearTimeout(systemTimer); systemTimer = null; }
   }
 
-  function schedulePoll() {
-    if (pollTimer) clearTimeout(pollTimer);
-    if (isHidden) {
-      pollTimer = setTimeout(schedulePoll, 10000); // check visibility every 10s
-      return;
-    }
-    var interval = getPollInterval();
-    pollTimer = setTimeout(pollSystem, interval);
+  function clearHealthTimer() {
+    if (healthTimer) { clearTimeout(healthTimer); healthTimer = null; }
+  }
+
+  function scheduleSystemPoll(delay) {
+    clearSystemTimer(); // one chain only — never stack timers
+    if (isHidden || sseOpen) return;
+    systemTimer = setTimeout(pollSystem, Math.max(POLL_MIN_MS, delay || POLL_MAX_MS));
+  }
+
+  function scheduleHealthPoll(delay) {
+    clearHealthTimer();
+    if (isHidden) return;
+    healthTimer = setTimeout(pollHealth, delay || HEALTH_INTERVAL_MS);
   }
 
   function fetchJson(url) {
     var started = performance.now();
-    return fetch(url, { headers: { Accept: 'application/json' } })
+    return fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
       .then(function (response) {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
@@ -352,12 +361,14 @@
   }
 
   function pollSystem() {
+    clearSystemTimer();
+    if (isHidden || sseOpen) return;
+
     fetchJson('/api/system')
       .then(function (result) {
         consecutiveErrors = 0;
-        lastHealthyAt = Date.now();
         applySystem(result.body.data || {}, result.latency);
-        schedulePoll();
+        scheduleSystemPoll(POLL_MAX_MS);
       })
       .catch(function () {
         consecutiveErrors++;
@@ -369,57 +380,89 @@
         setText('pulse-latency', '—');
         setText('hero-status-text', 'API unreachable');
         setText('hero-status-sub', 'The operations console could not reach the API. The server may be restarting or blocked by the network.');
-        // Exponential backoff on errors (max 60s)
-        var backoff = Math.min(5000 * Math.pow(1.5, consecutiveErrors), 60000);
-        if (pollTimer) clearTimeout(pollTimer);
-        pollTimer = setTimeout(pollSystem, backoff);
+        // Backoff from 15 s up to 60 s — still never rapid.
+        var backoff = Math.min(POLL_MIN_MS * Math.pow(1.5, consecutiveErrors), 60000);
+        scheduleSystemPoll(backoff);
       });
   }
 
   function pollHealth() {
+    clearHealthTimer();
+    if (isHidden) return;
+
     fetchJson('/api/health')
       .then(function (result) { applyHealth(result.body); })
-      .catch(function () { /* pulse already reports connectivity */ });
-    if (!isHidden) setTimeout(pollHealth, 30000);
+      .catch(function () { /* pulse already reports connectivity */ })
+      .then(function () { scheduleHealthPoll(HEALTH_INTERVAL_MS); });
   }
 
-  /* Page Visibility API */
-  document.addEventListener('visibilitychange', function () {
-    isHidden = document.hidden;
-    if (!isHidden) {
-      // Immediate poll when tab becomes visible
-      pollSystem();
-      pollHealth();
-    } else {
-      if (pollTimer) clearTimeout(pollTimer);
-    }
-  });
-
-  /* SSE fallback for real-time updates */
-  function connectSSE() {
-    if (typeof EventSource === 'undefined') return;
+  function closeStream() {
+    if (sseRetryTimer) { clearTimeout(sseRetryTimer); sseRetryTimer = null; }
     if (sse) { sse.close(); sse = null; }
+    sseOpen = false;
+  }
+
+  function connectSSE() {
+    if (isHidden) return;
+
+    if (typeof EventSource === 'undefined') {
+      scheduleSystemPoll(POLL_MAX_MS);
+      return;
+    }
+
+    if (sse) return; // already connected or connecting
+
     try {
       sse = new EventSource('/api/system/stream');
-      sse.onmessage = function (e) {
-        var data = JSON.parse(e.data);
-        applySystem(data, 0);
+
+      sse.onopen = function () {
+        sseOpen = true;
+        consecutiveErrors = 0;
+        clearSystemTimer(); // the stream owns updates now — stop polling
       };
+
+      sse.onmessage = function (event) {
+        try {
+          // Pushed frames carry no client-measured latency.
+          applySystem(JSON.parse(event.data), null);
+        } catch (e) { /* ignore malformed frame */ }
+      };
+
       sse.onerror = function () {
-        sse.close();
-        sse = null;
-        // Don't reconnect immediately, let polling handle it
-        setTimeout(connectSSE, 30000);
+        closeStream();
+        if (isHidden) return;
+        scheduleSystemPoll(POLL_MAX_MS);           // fallback while stream is down
+        sseRetryTimer = setTimeout(connectSSE, SSE_RETRY_MS);
       };
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      sse = null;
+      scheduleSystemPoll(POLL_MAX_MS);
+    }
   }
+
+  /* Page Visibility: a background tab makes zero network requests. */
+  document.addEventListener('visibilitychange', function () {
+    isHidden = document.hidden;
+
+    if (isHidden) {
+      clearSystemTimer();
+      clearHealthTimer();
+      closeStream();
+      return;
+    }
+
+    // Foreground again: one snapshot, refresh the JSON card, re-attach the stream.
+    pollSystem();
+    pollHealth();
+    connectSSE();
+  });
 
   // Start
   var originEls = document.querySelectorAll('.curl-origin');
   originEls.forEach(function (el) { el.textContent = window.location.origin; });
 
-  pollSystem();
-  pollHealth();
-  connectSSE();
+  connectSSE();   // preferred transport; schedules fallback polling if it fails
+  pollSystem();   // instant first paint; stops rescheduling once SSE is open
+  pollHealth();   // static payload card
 
 })();

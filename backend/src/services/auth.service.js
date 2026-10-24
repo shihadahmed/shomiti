@@ -3,10 +3,9 @@ import ApiError from '../utils/ApiError.js';
 import { hashPassword, verifyPassword, generateTemporaryPassword } from '../utils/password.js';
 import { signAccessToken } from '../utils/jwt.js';
 import { writeAudit } from '../utils/audit.js';
-import { ROLES, ROLE_VALUES, STAFF_ROLES } from '../config/constants.js';
+import { ROLES, ROLE_VALUES, STAFF_ROLES, EXECUTIVE_ROLES } from '../config/constants.js';
 
 const STAFF_CREATABLE_ROLES = [ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT, ROLES.MEMBER];
-const EXECUTIVE_ROLES = [ROLES.SUPER_ADMIN, ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT];
 
 export async function login(identifier, password, req) {
   const value = String(identifier || '').trim();
@@ -127,17 +126,19 @@ export async function listUsers(query = {}) {
   return { items, total, page, limit, pages: Math.ceil(total / limit) };
 }
 
+/** Assign a new role to a user — requires roles.assign permission */
 export async function updateUserRole(userId, newRole, actor, req) {
-  if (actor.role !== ROLES.SUPER_ADMIN) {
-    throw ApiError.forbidden('Only Super Admin can assign roles.', 'ROLE_ASSIGNMENT_FORBIDDEN');
+  // Check for roles.assign permission
+  if (!actor.permissions?.includes('roles.assign')) {
+    throw ApiError.forbidden('Missing required permission: roles.assign', 'ROLE_ASSIGNMENT_FORBIDDEN');
   }
 
-  // Prevent self-demotion
+  // Prevent self-role-change
   if (actor._id.toString() === userId) {
     throw ApiError.badRequest('You cannot change your own role.', 'SELF_DEMOTION_FORBIDDEN');
   }
 
-  // Only super_admin can assign executive roles
+  // Only super_admin can assign executive roles (stricter than just permission check)
   if (EXECUTIVE_ROLES.includes(newRole) && actor.role !== ROLES.SUPER_ADMIN) {
     throw ApiError.forbidden('Only Super Admin can assign executive roles.', 'EXECUTIVE_ROLE_RESTRICTED');
   }
@@ -145,6 +146,34 @@ export async function updateUserRole(userId, newRole, actor, req) {
   const user = await User.findById(userId);
   if (!user) {
     throw ApiError.notFound('User not found.', 'USER_NOT_FOUND');
+  }
+
+  // Prevent deactivating/removing the last active super_admin
+  if (user.role === ROLES.SUPER_ADMIN && newRole !== ROLES.SUPER_ADMIN) {
+    const activeSuperAdmins = await User.countDocuments({
+      role: ROLES.SUPER_ADMIN,
+      isActive: true,
+    });
+    if (activeSuperAdmins <= 1) {
+      throw ApiError.badRequest(
+        'Cannot demote the last active Super Admin. At least one active Super Admin must exist.',
+        'LAST_SUPER_ADMIN_PROTECTION'
+      );
+    }
+  }
+
+  // Prevent deactivating the last active super_admin via status change
+  if (user.role === ROLES.SUPER_ADMIN && !user.isActive) {
+    const activeSuperAdmins = await User.countDocuments({
+      role: ROLES.SUPER_ADMIN,
+      isActive: true,
+    });
+    if (activeSuperAdmins <= 1) {
+      throw ApiError.badRequest(
+        'Cannot deactivate the last active Super Admin. At least one active Super Admin must exist.',
+        'LAST_SUPER_ADMIN_PROTECTION'
+      );
+    }
   }
 
   const oldRole = user.role;
@@ -156,8 +185,8 @@ export async function updateUserRole(userId, newRole, actor, req) {
     action: 'user.role_changed',
     entityType: 'User',
     entityId: user._id,
-    before: { role: oldRole },
-    after: { role: newRole },
+    before: { role: oldRole, permissions: user.permissions || [] },
+    after: { role: newRole, permissions: user.permissions || [] },
     req,
   });
 
@@ -165,8 +194,9 @@ export async function updateUserRole(userId, newRole, actor, req) {
 }
 
 export async function updateUserStatus(userId, isActive, actor, req) {
-  if (actor.role !== ROLES.SUPER_ADMIN && actor.role !== ROLES.TREASURER && actor.role !== ROLES.GENERAL_SECRETARY) {
-    throw ApiError.forbidden('Insufficient permissions to change user status.', 'STATUS_CHANGE_FORBIDDEN');
+  // Check for roles.assign permission (reusing for status changes of staff)
+  if (!actor.permissions?.includes('roles.assign')) {
+    throw ApiError.forbidden('Missing required permission: roles.assign', 'STATUS_CHANGE_FORBIDDEN');
   }
 
   // Prevent self-suspension
@@ -177,6 +207,20 @@ export async function updateUserStatus(userId, isActive, actor, req) {
   const user = await User.findById(userId);
   if (!user) {
     throw ApiError.notFound('User not found.', 'USER_NOT_FOUND');
+  }
+
+  // Prevent deactivating the last active super_admin
+  if (user.role === ROLES.SUPER_ADMIN && isActive === false) {
+    const activeSuperAdmins = await User.countDocuments({
+      role: ROLES.SUPER_ADMIN,
+      isActive: true,
+    });
+    if (activeSuperAdmins <= 1) {
+      throw ApiError.badRequest(
+        'Cannot deactivate the last active Super Admin. At least one active Super Admin must exist.',
+        'LAST_SUPER_ADMIN_PROTECTION'
+      );
+    }
   }
 
   const oldStatus = user.isActive;

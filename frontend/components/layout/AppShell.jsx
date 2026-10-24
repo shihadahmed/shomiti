@@ -67,8 +67,8 @@ export default function AppShell({ children }) {
     const loadCount = async () => {
       try {
         const [slips, requests] = await Promise.all([
-          apiClient.get('/approvals/slips', { params: { status: 'pending', limit: 1 } }),
-          apiClient.get('/approvals', { params: { status: 'pending', limit: 1 } }),
+          apiClient.get('/approvals/slips', { status: 'pending', limit: 1 }),
+          apiClient.get('/approvals', { status: 'pending', limit: 1 }),
         ]);
         if (!cancelled) {
           setPendingApprovals(
@@ -80,12 +80,12 @@ export default function AppShell({ children }) {
       }
     };
     loadCount();
-    const timer = setInterval(loadCount, 30000);
+    const timer = setInterval(loadCount, 60000);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [isAuthenticated, user?.role, pathname]);
+  }, [isAuthenticated, user?.role]);
 
   const displayName = lang === 'bn' && user?.nameBn ? user.nameBn : user?.name;
 
