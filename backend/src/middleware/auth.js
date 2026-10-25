@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Role from '../models/Role.js';
 import ApiError from '../utils/ApiError.js';
 import { verifyAccessToken } from '../utils/jwt.js';
 import config from '../config/env.js';
@@ -28,7 +29,13 @@ export async function authenticate(req, _res, next) {
       throw ApiError.unauthorized('Session has been revoked. Please sign in again.', 'TOKEN_REVOKED');
     }
 
+    // Resolve the assigned role's permissions so the RBAC middleware can enforce them.
+    // The User document does not store permissions, so they are derived from the role.
+    const role = user.role
+      ? await Role.findOne({ name: user.role }).select('permissions')
+      : null;
     req.user = user;
+    req.user.permissions = role ? role.permissions : [];
     req.authSource = extracted.source;
     next();
   } catch (error) {
