@@ -9,8 +9,6 @@ import crypto from 'node:crypto';
 
 const STAFF_CREATABLE_ROLES = [ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT, ROLES.MEMBER];
 
-const STAFF_CREATABLE_ROLES = [ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT, ROLES.MEMBER];
-
 export async function login(identifier, password, req) {
   const value = String(identifier || '').trim();
   const user = await User.findOne({

@@ -84,24 +84,3 @@ export async function sendInviteEmail({ to, name, token }) {
 export default {
   sendInviteEmail,
 };
-
-
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    
-    if (config.mail.transport === 'json') {
-      // Log the JSON output for local development preview
-      console.log(`[Email Preview] to: ${to}\n${JSON.stringify(info, null, 2)}`);
-    }
-    
-    return { sent: true, messageId: info.messageId };
-  } catch (error) {
-    console.error(`[Email Service] failed to send mail to ${to}:`, error);
-    // We throw a generic internal error to be handled as a 502 by the controller
-    throw new Error(`Failed to send invitation email: ${error.message}`);
-  }
-}
-
-export default {
-  sendInviteEmail,
-};

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { requireRoles, requirePermission } from '../middleware/authorize.js';
 import { validate } from '../middleware/validate.js';
-import { loginLimiter } from '../middleware/rateLimit.js';
+import { loginLimiter, setupPasswordLimiter } from '../middleware/rateLimit.js';
 import { ROLES } from '../config/constants.js';
 import {
   loginRules,
