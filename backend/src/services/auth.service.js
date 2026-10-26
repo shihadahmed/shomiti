@@ -1,9 +1,13 @@
 import User from '../models/User.js';
 import ApiError from '../utils/ApiError.js';
-import { hashPassword, verifyPassword, generateTemporaryPassword } from '../utils/password.js';
+import { hashPassword, verifyPassword, generateTemporaryPassword, createSetupToken } from '../utils/password.js';
 import { signAccessToken } from '../utils/jwt.js';
 import { writeAudit } from '../utils/audit.js';
 import { ROLES, ROLE_VALUES, STAFF_ROLES, EXECUTIVE_ROLES } from '../config/constants.js';
+import emailService from './email.service.js';
+import crypto from 'node:crypto';
+
+const STAFF_CREATABLE_ROLES = [ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT, ROLES.MEMBER];
 
 const STAFF_CREATABLE_ROLES = [ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT, ROLES.MEMBER];
 
@@ -72,30 +76,47 @@ export async function createStaff(payload, actor, req) {
     throw ApiError.badRequest('A member portal account needs a linked member.', 'MEMBER_REQUIRED');
   }
 
-  const password = payload.password || generateTemporaryPassword();
+  const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
+  const placeholderPassword = await hashPassword(crypto.randomBytes(32).toString('hex'));
+
   const user = await User.create({
     name: payload.name,
     email: payload.email || undefined,
     phone: payload.phone,
+    nid: payload.nid,
     role: payload.role,
     member: payload.memberId || undefined,
-    passwordHash: await hashPassword(password),
-    mustChangePassword: !payload.password,
+    passwordHash: placeholderPassword,
+    resetPasswordToken: tokenHash,
+    resetPasswordExpires: tokenExpires,
+    mustChangePassword: true,
   });
 
-  await writeAudit({
-    actor: actor._id,
-    action: 'user.created',
-    entityType: 'User',
-    entityId: user._id,
-    after: user,
-    req,
-  });
+  try {
+    await emailService.sendInviteEmail({
+      to: user.email,
+      name: user.name,
+      token: rawToken,
+    });
 
-  return {
-    user: user.toJSON(),
-    temporaryPassword: payload.password ? undefined : password,
-  };
+    await writeAudit({
+      actor: actor._id,
+      action: 'user.created',
+      entityType: 'User',
+      entityId: user._id,
+      after: user,
+      req,
+    });
+
+    return {
+      user: user.toJSON(),
+      emailSent: true,
+    };
+  } catch (error) {
+    // Rollback: delete the user if email fails to prevent orphan accounts
+    await User.findByIdAndDelete(user._id);
+    throw new Error(`Failed to send invitation email: ${error.message}`);
+  }
 }
 
 export async function listUsers(query = {}) {
@@ -271,6 +292,88 @@ export async function resetUserPassword(userId, newPassword, actor, req) {
   };
 }
 
+export async function setupPassword(token, newPassword, req) {
+  const hashedToken = hashToken(token);
+  
+  const user = await User.findOneAndUpdate(
+    {
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+      isActive: true,
+    },
+    {
+      $set: {
+        passwordHash: await hashPassword(newPassword),
+        passwordChangedAt: new Date(),
+        mustChangePassword: false,
+      },
+      $inc: { tokenVersion: 1 },
+      $unset: {
+        resetPasswordToken: '',
+        resetPasswordExpires: '',
+      },
+    },
+    { new: true }
+  );
+
+  if (!user) {
+    throw ApiError.badRequest('The setup link is invalid or has expired.', 'INVALID_SETUP_TOKEN');
+  }
+
+  await writeAudit({
+    actor: user._id,
+    action: 'user.password_setup',
+    entityType: 'User',
+    entityId: user._id,
+    req,
+  });
+
+  return {
+    user: user.toJSON(),
+  };
+}
+
+export async function deleteUser(userId, actor, req) {
+  if (actor.role !== ROLES.SUPER_ADMIN) {
+    throw ApiError.forbidden('Only Super Admin can delete users.', 'USER_DELETE_FORBIDDEN');
+  }
+
+  if (actor._id.toString() === userId) {
+    throw ApiError.badRequest('You cannot delete your own account.', 'SELF_DELETION_FORBIDDEN');
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw ApiError.notFound('User not found.', 'USER_NOT_FOUND');
+  }
+
+  if (user.role === ROLES.SUPER_ADMIN && user.isActive) {
+    const activeSuperAdmins = await User.countDocuments({
+      role: ROLES.SUPER_ADMIN,
+      isActive: true,
+    });
+    if (activeSuperAdmins <= 1) {
+      throw ApiError.badRequest(
+        'Cannot delete the last active Super Admin. At least one active Super Admin must exist.',
+        'LAST_SUPER_ADMIN_PROTECTION'
+      );
+    }
+  }
+
+  await writeAudit({
+    actor: actor._id,
+    action: 'user.deleted',
+    entityType: 'User',
+    entityId: user._id,
+    before: user,
+    req,
+  });
+
+  await user.deleteOne();
+
+  return { id: user._id, name: user.name };
+}
+
 export async function listStaff() {
   return User.find({ role: { $in: ROLE_VALUES.filter((role) => role !== ROLES.MEMBER) } })
     .select('name email phone role isActive lastLoginAt createdAt member')
@@ -302,5 +405,7 @@ export default {
   updateUserRole,
   updateUserStatus,
   resetUserPassword,
+  setupPassword,
+  deleteUser,
   getUserMetrics,
 };

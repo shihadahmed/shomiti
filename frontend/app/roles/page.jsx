@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost, apiPatch, apiDelete } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import RoleModal from '@/components/ui/RoleModal';
 import {
@@ -180,7 +180,6 @@ export default function RolesPage() {
 
     setRoleSubmitting(true);
     try {
-      const { apiPost, apiPut } = await useApi();
       const payload = {
         name: roleForm.name.trim(),
         description: roleForm.description.trim(),
@@ -188,7 +187,7 @@ export default function RolesPage() {
       };
 
       if (editingRole) {
-        await apiPut(`/roles/${editingRole._id}`, payload);
+        await apiPatch(`/roles/${editingRole._id}`, payload);
         toast.success(tr('roles.updated'));
       } else {
         await apiPost('/roles', payload);
@@ -204,13 +203,12 @@ export default function RolesPage() {
   };
 
   const handleDeleteRole = async (role) => {
-    if (role.isSystemLocked) {
-      toast.error(tr('roles.systemRoleProtected'));
+    if (role.userCount > 0) {
+      toast.error(tr('roles.cannotDeleteInUse', { count: role.userCount }));
       return;
     }
     if (!window.confirm(tr('roles.confirmDelete'))) return;
     try {
-      const { apiDelete } = await useApi();
       await apiDelete(`/roles/${role._id}`);
       toast.success(tr('roles.deleted'));
       reloadRoles();
@@ -299,6 +297,7 @@ export default function RolesPage() {
                   <TableCell className="w-48">{tr('roles.name')}</TableCell>
                   <TableCell>{tr('roles.description')}</TableCell>
                   <TableCell className="w-36 text-center">{tr('roles.type')}</TableCell>
+                  <TableCell className="w-28 text-center">{tr('roles.users')}</TableCell>
                   <TableCell className="w-64">{tr('roles.privileges')}</TableCell>
                   <TableCell className="w-40 text-right">{tr('roles.actions')}</TableCell>
                 </TableRow>
@@ -306,17 +305,17 @@ export default function RolesPage() {
               <TableBody>
                 {roleLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8"><LoadingSpinner size="md" /></TableCell>
+                    <TableCell colSpan={6} className="text-center py-8"><LoadingSpinner size="md" /></TableCell>
                   </TableRow>
                 ) : roleError ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       <EmptyState icon="alert" title={tr('common.error')} description={tr('roles.error.loadFailed')} />
                     </TableCell>
                   </TableRow>
                 ) : roles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       <EmptyState icon="shield" title={tr('roles.noRoles')} description={tr('common.noData')} />
                     </TableCell>
                   </TableRow>
@@ -332,6 +331,9 @@ export default function RolesPage() {
                           {r.isSystemLocked ? tr('roles.systemLocked') : tr('roles.customRole')}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={r.userCount ? 'info' : 'default'}>{r.userCount || 0}</Badge>
+                      </TableCell>
                       <TableCell>
                         <Progress
                           value={r.permissionCount || r.permissions?.length || 0}
@@ -345,11 +347,9 @@ export default function RolesPage() {
                           <Button variant="ghost" size="sm" onClick={() => openEditRole(r)}>
                             <Icon name="edit" className="h-4 w-4" />
                           </Button>
-                          {!r.isSystemLocked && (
-                            <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteRole(r)}>
-                              <Icon name="trash" className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteRole(r)}>
+                            <Icon name="trash" className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

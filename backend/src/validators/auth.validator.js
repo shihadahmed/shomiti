@@ -23,16 +23,18 @@ export const changePasswordRules = [
 
 export const createStaffRules = [
   body('name').trim().notEmpty().withMessage('validation.required').isLength({ max: 120 }),
-  body('email').optional({ values: 'falsy' }).trim().isEmail().withMessage('validation.email'),
+  body('email').trim().notEmpty().withMessage('validation.required').isEmail().withMessage('validation.email'),
   bdPhone(body('phone').notEmpty().withMessage('validation.required')),
+  body('nid')
+    .trim()
+    .notEmpty()
+    .withMessage('validation.required')
+    .matches(/^\d{10}$|^\d{13}$|^\d{17}$/)
+    .withMessage('validation.nid'),
   body('role')
     .isIn(ROLE_VALUES.filter((role) => role !== ROLES.SUPER_ADMIN))
     .withMessage('validation.enum'),
-  body('password')
-    .optional({ values: 'falsy' })
-    .isString()
-    .isLength({ min: 8, max: 72 })
-    .withMessage('validation.passwordLength'),
+  body('password').optional({ values: 'falsy' }),
   body('memberId').optional({ values: 'falsy' }).isMongoId().withMessage('validation.identifier'),
 ];
 
@@ -57,6 +59,18 @@ export const resetUserPasswordRules = [
     .isString()
     .isLength({ min: 8, max: 72 })
     .withMessage('validation.passwordLength'),
+];
+
+export const setupPasswordRules = [
+  body('token').trim().notEmpty().withMessage('validation.required'),
+  body('password')
+    .isString()
+    .notEmpty()
+    .withMessage('validation.required')
+    .isLength({ min: 8, max: 72 })
+    .withMessage('validation.passwordLength')
+    .matches(/^(?=.*[A-Za-z])(?=.*\d)/)
+    .withMessage('validation.passwordStrength'),
 ];
 
 export const listUsersQueryRules = [

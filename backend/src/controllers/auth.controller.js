@@ -29,6 +29,12 @@ export const me = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { user: req.user } });
 });
 
+export const setupPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+  const result = await authService.setupPassword(token, password, req);
+  res.json({ success: true, data: result });
+});
+
 export const changePassword = asyncHandler(async (req, res) => {
   const { user, token } = await authService.changePassword(req.user, req.body, req);
   setSessionCookie(res, token);
@@ -72,9 +78,14 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result });
 });
 
+export const deleteUser = asyncHandler(async (req, res) => {
+  const result = await authService.deleteUser(req.params.id, req.user, req);
+  res.json({ success: true, data: result });
+});
+
 export const getUserMetrics = asyncHandler(async (_req, res) => {
   const metrics = await authService.getUserMetrics();
   res.json({ success: true, data: metrics });
 });
 
-export default { login, logout, me, changePassword, createStaff, listStaff, listUsers, updateUserRole, updateUserStatus, resetUserPassword, getUserMetrics };
+export default { login, logout, me, setupPassword, changePassword, createStaff, listStaff, listUsers, updateUserRole, updateUserStatus, resetUserPassword, deleteUser, getUserMetrics };

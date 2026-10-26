@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { Icon, Input, Button } from '@/components/ui/common';
@@ -13,8 +13,9 @@ const FEATURES = [
   { icon: 'file', key: 'login.featureDocs' },
 ];
 
-export default function HomePage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tr, lang, setLang } = useLang();
 
   const login = useAuthStore((state) => state.login);
@@ -23,32 +24,33 @@ export default function HomePage() {
   const clearError = useAuthStore((state) => state.clearError);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
+  const nextParam = searchParams.get('next');
+  const nextUrl = nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard';
+
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [nextUrl, setNextUrl] = useState('/dashboard');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const params = new URLSearchParams(window.location.search);
-    const next = params.get('next');
-    if (next && next.startsWith('/')) setNextUrl(next);
-  }, []);
 
   useEffect(() => {
     if (isAuthenticated) router.replace(nextUrl);
   }, [isAuthenticated, nextUrl, router]);
 
   const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (isLoading) return;
+    if (event?.preventDefault) event.preventDefault();
+    if (!identifier.trim() || !password) return;
+
     clearError();
-    const success = await login(identifier.trim(), password, rememberMe);
-    if (success) router.replace(nextUrl);
+    try {
+      const success = await login(identifier.trim(), password, rememberMe);
+      if (success) {
+        router.replace(nextUrl);
+      }
+    } catch (err) {
+      console.error('Login submit error:', err);
+    }
   };
 
   const updateIdentifier = (event) => {
@@ -67,18 +69,8 @@ export default function HomePage() {
     }
   };
 
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-brand-50">
-        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-700 shadow-lg ring-4 ring-brand-100 animate-pulse overflow-hidden">
-          <img src="/logo.png" alt="" className="h-full w-full object-cover" aria-hidden="true" />
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-brand-50 lg:grid lg:grid-cols-[1.05fr_1fr]">
+    <div className="min-h-screen bg-brand-50 lg:grid lg:grid-cols-[1.05fr_1fr]" suppressHydrationWarning>
       {/* ───────────────────────── Brand panel ───────────────────────── */}
       <aside className="auth-gradient relative hidden overflow-hidden text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
         <span className="auth-glow left-[-90px] top-[-80px] h-64 w-64 bg-gold-300/25" aria-hidden="true" />
@@ -275,12 +267,12 @@ export default function HomePage() {
 
               <Button
                 type="submit"
+                onClick={handleSubmit}
                 variant="primary"
                 size="lg"
                 className="w-full shadow-lg shadow-brand-700/20"
                 loading={isLoading}
                 loadingLabel={tr('login.signingIn')}
-                disabled={isLoading || !identifier.trim() || !password}
               >
                 <span>{tr('login.signIn')}</span>
                 <Icon name="arrowRight" className="h-4 w-4" />
@@ -324,5 +316,21 @@ export default function HomePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-brand-50">
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-700 shadow-lg ring-4 ring-brand-100 animate-pulse overflow-hidden">
+            <img src="/logo.png" alt="" className="h-full w-full object-cover" aria-hidden="true" />
+          </span>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

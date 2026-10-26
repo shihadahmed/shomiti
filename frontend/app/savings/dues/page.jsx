@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import SearchParamSync from '@/components/layout/SearchParamSync';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatMoney, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal } from '@/components/ui/common';
@@ -109,7 +109,7 @@ export default function DuesPage() {
     setPaySubmitting(true);
     try {
       const idempotencyKey = `pay-${payingDue._id}-${Date.now()}`;
-      await useApi().then(({ apiPost }) => apiPost(
+      await apiPost(
         `/savings/dues/${payingDue._id}/pay`,
         {
           amount: required,
@@ -120,7 +120,7 @@ export default function DuesPage() {
           note: payForm.note,
         },
         { headers: { 'idempotency-key': idempotencyKey } }
-      ));
+      );
       toast.success(tr('toast.created'));
       closePayModal();
       reload();
@@ -143,7 +143,7 @@ export default function DuesPage() {
     if (!period) return;
 
     try {
-      await useApi().then(({ apiPost }) => apiPost('/savings/dues/generate', { savingsType: type, period }));
+      await apiPost('/savings/dues/generate', { savingsType: type, period });
       toast.success(tr('toast.created'));
       reload();
     } catch (requestError) {

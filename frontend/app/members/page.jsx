@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost, apiPatch, apiDelete } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import SearchParamSync from '@/components/layout/SearchParamSync';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatMoney, formatDate, Modal, StatusBadge, Pagination, SearchInput, FilterBar } from '@/components/ui/common';
@@ -148,9 +148,9 @@ export default function MembersPage() {
       };
 
       if (editingMember) {
-        await useApi().then(({ apiPatch }) => apiPatch(`/members/${editingMember._id}`, payload));
+        await apiPatch(`/members/${editingMember._id}`, payload);
       } else {
-        await useApi().then(({ apiPost }) => apiPost('/members', payload));
+        await apiPost('/members', payload);
       }
 
       toast.success(editingMember ? tr('toast.updated') : tr('toast.created'));
@@ -175,7 +175,7 @@ export default function MembersPage() {
   const handleDelete = async (id) => {
     if (!window.confirm(tr('common.confirm'))) return;
     try {
-      await useApi().then(({ apiDelete }) => apiDelete(`/members/${id}`));
+      await apiDelete(`/members/${id}`);
       toast.success(tr('toast.deleted'));
       reload();
     } catch (requestError) {

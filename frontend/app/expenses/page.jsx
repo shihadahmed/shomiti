@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost, apiPatch } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatMoney, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal } from '@/components/ui/common';
 import { FormSection, FormActions } from '@/components/ui/form';
@@ -109,7 +109,7 @@ export default function ExpensesPage() {
 
   const submitExpense = async (expenseId) => {
     try {
-      await useApi().then(({ apiPost }) => apiPost(`/expenses/${expenseId}/submit`, {}));
+      await apiPost(`/expenses/${expenseId}/submit`, {});
       toast.success(tr('expenses.submitted'));
       reload();
     } catch (requestError) {
@@ -144,9 +144,9 @@ export default function ExpensesPage() {
       };
 
       if (editingExpense) {
-        await useApi().then(({ apiPatch }) => apiPatch(`/expenses/${editingExpense._id}`, payload));
+        await apiPatch(`/expenses/${editingExpense._id}`, payload);
       } else {
-        await useApi().then(({ apiPost }) => apiPost('/expenses', payload));
+        await apiPost('/expenses', payload);
       }
 
       toast.success(editingExpense ? tr('toast.updated') : tr('toast.created'));

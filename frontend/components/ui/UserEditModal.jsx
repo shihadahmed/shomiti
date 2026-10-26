@@ -14,7 +14,7 @@ export default function UserEditModal({
   submitting,
   onSubmit,
   currentUserId,
-  roleOptions,
+  roleOptions = [],
   tr,
 }) {
   if (!open) return null;
@@ -40,27 +40,32 @@ export default function UserEditModal({
             <div className="space-y-3">
               <Input
                 label={tr('members.fullName')}
+                placeholder="Enter full name"
                 value={form.name}
                 onChange={(e) => onChange({ ...form, name: e.target.value })}
                 required
               />
               <Input
                 label={tr('members.email')}
+                placeholder="user@example.com (Password setup link will be sent here)"
                 value={form.email}
                 onChange={(e) => onChange({ ...form, email: e.target.value })}
                 type="email"
+                required
               />
               <Input
                 label={tr('members.phone')}
+                placeholder="017xxxxxxxx"
                 value={form.phone}
                 onChange={(e) => onChange({ ...form, phone: e.target.value })}
                 required
               />
               <Input
-                label={tr('users.password')}
-                value={form.password}
-                onChange={(e) => onChange({ ...form, password: e.target.value })}
-                type="password"
+                label={tr('users.nid')}
+                placeholder="Enter NID number"
+                value={form.nid}
+                onChange={(e) => onChange({ ...form, nid: e.target.value })}
+                required
               />
             </div>
           )}
@@ -70,7 +75,12 @@ export default function UserEditModal({
               label={tr('users.role')}
               value={form.role}
               onChange={(e) => onChange({ ...form, role: e.target.value })}
-              options={roleOptions}
+              options={
+                roleOptions.length > 0
+                  ? roleOptions
+                  : [{ value: '', label: 'Loading roles...' }]
+              }
+              required
             />
             <Select
               label={tr('users.status')}
@@ -84,6 +94,13 @@ export default function UserEditModal({
             />
           </div>
         </FormSection>
+
+        {isCreating && (
+          <p className="text-xs text-brand-600 bg-brand-50 p-2.5 rounded-lg flex items-center gap-2">
+            <Icon name="globe" className="h-4 w-4 text-brand-500 shrink-0" />
+            An automatic email with a password setup link will be sent to the user upon creation.
+          </p>
+        )}
 
         <FormActions>
           <Button type="button" variant="secondary" onClick={onClose}>

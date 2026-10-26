@@ -1,0 +1,130 @@
+'use client';
+
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useLang } from '@/lib/useLang';
+import { apiPost } from '@/lib/useApi';
+import AppShell from '@/components/layout/AppShell';
+import { Icon, Input, Button } from '@/components/ui/common';
+import toast from 'react-hot-toast';
+
+function ResetPasswordForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { tr } = useLang();
+  
+  const token = searchParams.get('token');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!token) {
+      toast.error(tr('resetPassword.tokenInvalid'));
+    }
+  }, [token, tr]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!token) return;
+    if (password !== confirmPassword) {
+      toast.error(tr('validation.mismatch'));
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await apiPost('/auth/setup-password', { token, password });
+      setSuccess(true);
+      toast.success(tr('resetPassword.success'));
+    } catch (err) {
+      toast.error(err?.message || tr('error.generic'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <div className="card card-pad text-center py-12">
+        <Icon name="alert" className="mx-auto h-12 w-12 text-amber-500" />
+        <h3 className="mt-4 text-lg font-semibold text-brand-900">{tr('resetPassword.tokenInvalid')}</h3>
+        <p className="mt-2 text-brand-500">The link may have expired or is invalid. Please contact your administrator.</p>
+        <Button 
+          variant="secondary" 
+          className="mt-6" 
+          onClick={() => router.push('/login')}
+        >
+          {tr('resetPassword.login')}
+        </Button>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="card card-pad text-center py-12">
+        <Icon name="check" className="mx-auto h-12 w-12 text-green-500" />
+        <h3 className="mt-4 text-lg font-semibold text-brand-900">{tr('resetPassword.success')}</h3>
+        <p className="mt-2 text-brand-500">Your password has been set up. You can now sign in to your account.</p>
+        <Button 
+          variant="primary" 
+          className="mt-6" 
+          onClick={() => router.push('/login')}
+        >
+          {tr('resetPassword.login')}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-3">
+          <Input
+            label={tr('resetPassword.password')}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <Input
+            label={tr('resetPassword.confirmPassword')}
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+        </div>
+        <Button 
+          type="submit" 
+          variant="primary" 
+          className="w-full" 
+          loading={submitting} 
+          loadingLabel={tr('common.saving')}
+        >
+          {tr('resetPassword.submit')}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  const { tr } = useLang();
+  return (
+    <AppShell>
+      <div className="space-y-6">
+        <PageHeader 
+          title={tr('resetPassword.title')} 
+          subtitle={tr('resetPassword.subtitle')} 
+        />
+        <Suspense fallback={<LoadingSpinner size="md" className="mx-auto" />}>
+          <ResetPasswordForm />
+        </Suspense>
+      </div>
+    </AppShell>
+  );
+}

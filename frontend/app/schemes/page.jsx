@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost, apiPatch } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatMoney, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal, Tabs, Tab } from '@/components/ui/common';
 import { FormSection, FormActions } from '@/components/ui/form';
@@ -136,9 +136,9 @@ export default function SchemesPage() {
     setSchemeSubmitting(true);
     try {
       if (editingScheme) {
-        await useApi().then(({ apiPatch }) => apiPatch(`/schemes/${editingScheme._id}`, schemeForm));
+        await apiPatch(`/schemes/${editingScheme._id}`, schemeForm);
       } else {
-        await useApi().then(({ apiPost }) => apiPost('/schemes', schemeForm));
+        await apiPost('/schemes', schemeForm);
       }
       toast.success(editingScheme ? tr('toast.updated') : tr('toast.created'));
       closeSchemeModal();
@@ -161,11 +161,11 @@ export default function SchemesPage() {
 
     setEnrollSubmitting(true);
     try {
-      await useApi().then(({ apiPost }) => apiPost('/schemes/enroll', {
+      await apiPost('/schemes/enroll', {
         memberId: enrollingMember,
         schemeId: enrollForm.schemeId,
         startDate: enrollForm.startDate,
-      }));
+      });
       toast.success(tr('toast.created'));
       closeEnrollModal();
       reloadEnrollments();

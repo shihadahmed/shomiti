@@ -59,24 +59,25 @@ export function useApi(path, params, { enabled = true } = {}) {
   return { data, loading, error, reload: load, setData };
 }
 
-export async function apiGet(path, params) {
-  const response = await apiClient.get(path, params);
+export async function apiGet(path, params, config) {
+  const response = await apiClient.get(path, params, config);
+  if (config?.responseType === 'blob') return response.data;
   return response.data?.data;
 }
 
 export async function apiPost(path, body, config) {
   const response = await apiClient.post(path, body, config);
-  return response.data;
+  return response.data?.data;
 }
 
 export async function apiPatch(path, body) {
   const response = await apiClient.patch(path, body);
-  return response.data;
+  return response.data?.data;
 }
 
 export async function apiDelete(path) {
   const response = await apiClient.delete(path);
-  return response.data;
+  return response.data?.data;
 }
 
 export default useApi;

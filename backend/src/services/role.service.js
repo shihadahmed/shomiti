@@ -20,14 +20,22 @@ function checkSelfProtection(actor, targetUserId, action) {
 
 /** Initialize default system roles on startup */
 export async function initializeDefaultRoles() {
+  const hasAnyRole = (await Role.estimatedDocumentCount()) > 0;
+
   for (const roleData of DEFAULT_SYSTEM_ROLES) {
     const existing = await Role.findOne({ name: roleData.name });
     if (!existing) {
-      await Role.create({
-        ...roleData,
-        isSystemLocked: true,
-      });
-    } else if (existing.isSystemLocked) {
+      // Seed the default set only on a fresh install. A role deliberately
+      // deleted by a Super Admin must stay deleted after a restart.
+      if (!hasAnyRole) {
+        await Role.create({
+          ...roleData,
+          isSystemLocked: true,
+        });
+      }
+      continue;
+    }
+    if (existing.isSystemLocked) {
       // Ensure permissions are up to date for system roles
       existing.permissions = roleData.permissions;
       existing.description = roleData.description;
@@ -178,11 +186,6 @@ export async function deleteRole(roleId, actor, req) {
   const role = await Role.findById(roleId);
   if (!role) {
     throw ApiError.notFound('Role not found.', 'ROLE_NOT_FOUND');
-  }
-
-  // Prevent deleting system-locked roles
-  if (role.isSystemLocked) {
-    throw ApiError.badRequest('Cannot delete system-locked roles.', 'SYSTEM_ROLE_PROTECTED');
   }
 
   // Check if any users are assigned this role

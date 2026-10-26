@@ -92,6 +92,18 @@ const config = {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
+  frontendUrl: process.env.FRONTEND_URL || (isLocal ? 'http://localhost:3000' : ''),
+  mail: {
+    enabled: bool(process.env.MAIL_ENABLED, true),
+    transport: process.env.MAIL_TRANSPORT || (isLocal ? 'json' : 'smtp'),
+    host: process.env.SMTP_HOST,
+    port: int(process.env.SMTP_PORT, 587),
+    secure: bool(process.env.SMTP_SECURE, false),
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.MAIL_FROM || 'SHOMITI <no-reply@shomiti.local>',
+    inviteTtlHours: int(process.env.INVITE_TOKEN_TTL_HOURS, 24),
+  },
   serveFrontend: bool(process.env.SERVE_FRONTEND, true),
   uploadDir: path.resolve(backendRoot, process.env.UPLOAD_DIR || 'uploads'),
   maxUploadBytes: int(process.env.MAX_UPLOAD_BYTES, 5 * 1024 * 1024),
@@ -112,6 +124,13 @@ if (isProduction) {
   }
   if (config.jwt.secret.startsWith('dev-only')) {
     throw new Error('JWT_SECRET must be set to a strong random value in production');
+  }
+  // Ensure mail is configured if enabled in production
+  if (config.mail.enabled && config.mail.transport === 'smtp') {
+    const mailMissing = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'].filter((key) => !process.env[key]);
+    if (mailMissing.length) {
+      throw new Error(`Missing required production mail variables: ${mailMissing.join(', ')}`);
+    }
   }
 }
 

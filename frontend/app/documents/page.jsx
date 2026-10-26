@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiGet, apiPost, apiDelete } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import SearchParamSync from '@/components/layout/SearchParamSync';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal } from '@/components/ui/common';
@@ -153,9 +153,9 @@ export default function DocumentsPage() {
       formData.append('visibility', form.visibility);
       if (form.memberId) formData.append('memberId', form.memberId);
 
-      await useApi().then(({ apiPost }) => apiPost('/documents', formData, {
+      await apiPost('/documents', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-      }));
+      });
 
       toast.success(tr('toast.created'));
       closeModal();
@@ -169,7 +169,7 @@ export default function DocumentsPage() {
 
   const handleDownload = async (docId, originalName) => {
     try {
-      const blob = await useApi().then(({ apiGet }) => apiGet(`/documents/${docId}/file`, {}, { responseType: 'blob' }));
+      const blob = await apiGet(`/documents/${docId}/file`, {}, { responseType: 'blob' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -186,7 +186,7 @@ export default function DocumentsPage() {
   const handleDelete = async (docId) => {
     if (!window.confirm(tr('documents.deleteConfirm'))) return;
     try {
-      await useApi().then(({ apiDelete }) => apiDelete(`/documents/${docId}`));
+      await apiDelete(`/documents/${docId}`);
       toast.success(tr('toast.deleted'));
       reload();
     } catch (requestError) {

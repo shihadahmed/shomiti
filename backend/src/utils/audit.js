@@ -5,6 +5,9 @@ export function sanitizeSnapshot(value) {
   if (!value) return value;
   const plain = typeof value.toObject === 'function' ? value.toObject() : { ...value };
   delete plain.passwordHash;
+  delete plain.tokenVersion;
+  delete plain.resetPasswordToken;
+  delete plain.resetPasswordExpires;
   delete plain.__v;
   return plain;
 }

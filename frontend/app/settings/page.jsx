@@ -4,10 +4,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost, apiPatch } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal, Tab, Tabs, Table, TableHeader, TableRow, TableCell, TableBody, Tooltip, Dropdown, DropdownItem } from '@/components/ui/common';
-import { FormSection, FormActions } from '@/components/ui/form';
 import toast from 'react-hot-toast';
 
 const ROLE_OPTIONS = [
@@ -39,11 +38,6 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [userPage, setUserPage] = useState(1);
   const [auditPage, setAuditPage] = useState(1);
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', role: 'member', password: '' });
-  const [userErrors, setUserErrors] = useState({});
-  const [userSubmitting, setUserSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -78,63 +72,8 @@ export default function SettingsPage() {
     }
   }, [mounted, checking, isAuthenticated, router]);
 
-  const openAddUser = () => {
-    setEditingUser(null);
-    setUserForm({ name: '', email: '', phone: '', role: 'member', password: '' });
-    setUserErrors({});
-    setShowUserModal(true);
-  };
-
-  const openEditUser = (u) => {
-    setEditingUser(u);
-    setUserForm({ name: u.name || '', email: u.email || '', phone: u.phone || '', role: u.role, password: '' });
-    setUserErrors({});
-    setShowUserModal(true);
-  };
-
-  const closeUserModal = () => {
-    setShowUserModal(false);
-    setEditingUser(null);
-    setUserForm({ name: '', email: '', phone: '', role: 'member', password: '' });
-    setUserErrors({});
-  };
-
-  const handleUserSubmit = async (e) => {
-    e.preventDefault();
-    setUserErrors({});
-
-    if (!userForm.name || !userForm.phone) {
-      setUserErrors({ submit: tr('error.validation') });
-      return;
-    }
-
-    if (!editingUser && !userForm.password) {
-      setUserErrors({ password: tr('validation.required') });
-      return;
-    }
-
-    setUserSubmitting(true);
-    try {
-      const payload = { ...userForm };
-      if (!payload.password) delete payload.password;
-
-      if (editingUser) {
-        await useApi().then(({ apiPatch }) => apiPatch(`/auth/users/${editingUser._id}`, payload));
-      } else {
-        await useApi().then(({ apiPost }) => apiPost('/auth/users', payload));
-      }
-      toast.success(editingUser ? tr('toast.updated') : tr('toast.created'));
-      closeUserModal();
-      reloadUsers();
-    } catch (requestError) {
-      setUserErrors({ submit: requestError?.message || tr('error.generic') });
-    } finally {
-      setUserSubmitting(false);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    const current = window.prompt(tr('password.current'));
+  // User Management Actions
+  const handleRoleChange = async (userId, newRole, userName) => {    const current = window.prompt(tr('password.current'));
     if (!current) return;
     const newPass = window.prompt(tr('password.new'));
     if (!newPass) return;
@@ -144,7 +83,7 @@ export default function SettingsPage() {
       return;
     }
     try {
-      await useApi().then(({ apiPost }) => apiPost('/auth/change-password', { currentPassword: current, newPassword: newPass }));
+      await apiPost('/auth/change-password', { currentPassword: current, newPassword: newPass });
       toast.success(tr('toast.passwordChanged'));
     } catch (requestError) {
       alert(requestError?.message || tr('error.generic'));
@@ -159,7 +98,7 @@ export default function SettingsPage() {
   const handleRoleChange = async (userId, newRole, userName) => {
     if (!window.confirm(tr('users.confirmRoleChange'))) return;
     try {
-      await useApi().then(({ apiPatch }) => apiPatch(`/auth/users/${userId}/role`, { role: newRole }));
+      await apiPatch(`/auth/users/${userId}/role`, { role: newRole });
       toast.success(tr('users.roleAssigned'));
       reloadUsers();
     } catch (requestError) {
@@ -170,7 +109,7 @@ export default function SettingsPage() {
   const handleStatusChange = async (userId, isActive, userName) => {
     if (!window.confirm(tr('users.confirmStatusChange'))) return;
     try {
-      await useApi().then(({ apiPatch }) => apiPatch(`/auth/users/${userId}/status`, { isActive }));
+      await apiPatch(`/auth/users/${userId}/status`, { isActive });
       toast.success(tr('users.statusUpdated'));
       reloadUsers();
     } catch (requestError) {
@@ -181,7 +120,7 @@ export default function SettingsPage() {
   const handlePasswordReset = async (userId, userName) => {
     if (!window.confirm(`${tr('shell.resetPassword')} ${userName}?`)) return;
     try {
-      const result = await useApi().then(({ apiPost }) => apiPost(`/auth/users/${userId}/reset-password`, {}));
+      const result = await apiPost(`/auth/users/${userId}/reset-password`, {});
       if (result.temporaryPassword) {
         alert(`${tr('users.temporaryPassword', { password: result.temporaryPassword })}`);
       } else {
@@ -242,8 +181,6 @@ export default function SettingsPage() {
           error={userError}
           page={userPage}
           setPage={setUserPage}
-          onAdd={openAddUser}
-          onEdit={openEditUser}
           onRoleChange={handleRoleChange}
           onStatusChange={handleStatusChange}
           onPasswordReset={handlePasswordReset}
@@ -269,19 +206,6 @@ export default function SettingsPage() {
           setPage={setAuditPage}
         />
       )}
-
-      <UserModal
-        open={showUserModal}
-        onClose={closeUserModal}
-        title={editingUser ? tr('settings.editUser') : tr('settings.addUser')}
-        form={userForm}
-        errors={userErrors}
-        onChange={setUserForm}
-        submitting={userSubmitting}
-        onSubmit={handleUserSubmit}
-        isEdit={!!editingUser}
-        canAssignExecutiveRoles={canAssignExecutiveRoles}
-      />
     </AppShell>
   );
 }
@@ -343,7 +267,6 @@ function UserManagementView({
   error,
   page,
   setPage,
-  onAdd,
   onEdit,
   onRoleChange,
   onStatusChange,
@@ -402,10 +325,6 @@ function UserManagementView({
             />
           </div>
         </div>
-        <Button variant="primary" onClick={onAdd}>
-          <Icon name="plus" className="h-4 w-4" />
-          {tr('settings.addUser')}
-        </Button>
       </div>
 
       <div className="overflow-x-auto">
@@ -493,7 +412,9 @@ function UserManagementView({
                           <Icon name="lock" className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button variant="secondary" size="sm" onClick={() => onEdit(u)}>
+                      <Button variant="secondary" size="sm" onClick={() => {
+                        router.push('/users');
+                      }}>
                         <Icon name="edit" className="h-4 w-4" />
                         {tr('common.edit')}
                       </Button>
@@ -560,72 +481,4 @@ function AuditLogView({ logs, meta, loading, error, page, setPage }) {
   );
 }
 
-function UserModal({ open, onClose, title, form, errors, onChange, submitting, onSubmit, isEdit, canAssignExecutiveRoles }) {
-  const { tr } = useLang();
-
-  if (!open) return null;
-
-  const roleOptions = canAssignExecutiveRoles
-    ? ROLE_OPTIONS
-    : ROLE_OPTIONS.filter(opt => opt.value === 'member');
-
-  return (
-    <Modal isOpen={open} onClose={onClose} title={title} size="md">
-      <form onSubmit={onSubmit} className="space-y-4">
-        {errors.submit && (
-          <div className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{errors.submit}</div>
-        )}
-
-        <FormSection title={tr('settings.userDetails')}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label={tr('members.fullName')}
-              value={form.name}
-              onChange={(e) => onChange({ ...form, name: e.target.value })}
-              error={errors.name}
-              required
-            />
-            <Input
-              label={tr('members.email')}
-              type="email"
-              value={form.email}
-              onChange={(e) => onChange({ ...form, email: e.target.value })}
-              error={errors.email}
-            />
-            <Input
-              label={tr('members.phone')}
-              type="tel"
-              value={form.phone}
-              onChange={(e) => onChange({ ...form, phone: e.target.value })}
-              error={errors.phone}
-              required
-            />
-            <Select
-              label={tr('settings.role')}
-              value={form.role}
-              onChange={(e) => onChange({ ...form, role: e.target.value })}
-              required
-              options={roleOptions}
-            />
-            <Input
-              label={isEdit ? tr('password.new') : tr('password.new')}
-              type="password"
-              value={form.password}
-              onChange={(e) => onChange({ ...form, password: e.target.value })}
-              error={errors.password}
-              required={!isEdit}
-              hint={isEdit ? tr('password.hint') : undefined}
-            />
-          </div>
-        </FormSection>
-
-        <FormActions>
-          <Button type="button" variant="secondary" onClick={onClose}>{tr('common.cancel')}</Button>
-          <Button type="submit" variant="primary" loading={submitting} loadingLabel={tr('common.saving')}>
-            {isEdit ? tr('common.save') : tr('settings.addUser')}
-          </Button>
-        </FormActions>
-      </form>
-    </Modal>
-  );
 }

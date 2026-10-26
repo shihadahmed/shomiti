@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost, apiPatch } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import SearchParamSync from '@/components/layout/SearchParamSync';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatMoney, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal } from '@/components/ui/common';
@@ -158,9 +158,9 @@ export default function SavingsPage() {
       };
 
       if (editingTxn) {
-        await useApi().then(({ apiPatch }) => apiPatch(`/savings/transactions/${editingTxn._id}`, payload));
+        await apiPatch(`/savings/transactions/${editingTxn._id}`, payload);
       } else {
-        await useApi().then(({ apiPost }) => apiPost('/savings/transactions', payload));
+        await apiPost('/savings/transactions', payload);
       }
 
       toast.success(editingTxn ? tr('toast.updated') : tr('toast.created'));

@@ -24,4 +24,13 @@ export const loginLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === 'test',
 });
 
-export default { globalLimiter, loginLimiter };
+export const setupPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler,
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+export default { globalLimiter, loginLimiter, setupPasswordLimiter };

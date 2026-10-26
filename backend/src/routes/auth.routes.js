@@ -11,6 +11,7 @@ import {
   updateUserRoleRules,
   updateUserStatusRules,
   resetUserPasswordRules,
+  setupPasswordRules,
   listUsersQueryRules,
   idParam,
 } from '../validators/auth.validator.js';
@@ -19,6 +20,7 @@ import * as authController from '../controllers/auth.controller.js';
 const router = Router();
 
 router.post('/login', loginLimiter, loginRules, validate, authController.login);
+router.post('/setup-password', setupPasswordLimiter, setupPasswordRules, validate, authController.setupPassword);
 router.post('/logout', authController.logout);
 router.get('/me', authenticate, authController.me);
 router.post(
@@ -70,6 +72,14 @@ router.post(
   resetUserPasswordRules,
   validate,
   authController.resetUserPassword,
+);
+router.delete(
+  '/users/:id',
+  authenticate,
+  requireRoles(ROLES.SUPER_ADMIN),
+  idParam,
+  validate,
+  authController.deleteUser,
 );
 
 // Metrics endpoint for executive roles

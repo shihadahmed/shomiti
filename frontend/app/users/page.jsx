@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPatch, apiPost, apiDelete } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import UserEditModal from '@/components/ui/UserEditModal';
 import {
@@ -13,14 +13,6 @@ import {
   SearchInput, Pagination, StatCard, Dropdown, Avatar, FormatDate
 } from '@/components/ui/common';
 import toast from 'react-hot-toast';
-
-const ROLE_OPTIONS = [
-  { value: 'super_admin', label: 'users.roleOptions.super_admin' },
-  { value: 'president', label: 'users.roleOptions.president' },
-  { value: 'general_secretary', label: 'users.roleOptions.general_secretary' },
-  { value: 'treasurer', label: 'users.roleOptions.treasurer' },
-  { value: 'member', label: 'users.roleOptions.member' },
-];
 
 const EXECUTIVE_ROLES = ['super_admin', 'president', 'general_secretary', 'treasurer'];
 
@@ -42,9 +34,34 @@ export default function UsersPage() {
 
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [userForm, setUserForm] = useState({ role: 'member', isActive: true, name: '', email: '', phone: '', password: '' });
+  const [userForm, setUserForm] = useState({ role: '', isActive: true, name: '', email: '', phone: '', password: '' });
   const [userErrors, setUserErrors] = useState({});
   const [userSubmitting, setUserSubmitting] = useState(false);
+
+  // Database theke dynamically roles load kora
+  const { data: rolesApiData } = useApi(
+    '/roles',
+    { limit: 100 },
+    { enabled: isAuthenticated && isExecutive }
+  );
+
+  // Dynamic role options toiri kora
+  const roleOptions = useMemo(() => {
+    const dbRoles = rolesApiData?.items || [];
+    if (!dbRoles.length) return [];
+
+    return dbRoles.map((r) => ({
+      value: r.name,
+      label: r.name === 'super_admin' ? 'Super Admin' : r.name.replace(/_/g, ' ').toUpperCase(),
+    }));
+  }, [rolesApiData]);
+
+  // Form-e default role set kora jodi faka thake
+  useEffect(() => {
+    if (!userForm.role && roleOptions.length > 0) {
+      setUserForm((prev) => ({ ...prev, role: roleOptions[0].value }));
+    }
+  }, [roleOptions, userForm.role]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -68,7 +85,7 @@ export default function UsersPage() {
     { enabled: isAuthenticated && isExecutive }
   );
 
-  const { data: metricsData } = useApi('/auth/users/metrics', {}, { enabled: isAuthenticated && isExecutive });
+  const { data: metricsData, reload: reloadMetrics } = useApi('/auth/users/metrics', {}, { enabled: isAuthenticated && isExecutive });
 
   if (!isAuthenticated) return null;
 
@@ -93,7 +110,14 @@ export default function UsersPage() {
 
   const openAddUser = () => {
     setEditingUser(null);
-    setUserForm({ role: 'member', isActive: true, name: '', email: '', phone: '', password: '' });
+    setUserForm({
+      role: roleOptions[0]?.value || 'member',
+      isActive: true,
+      name: '',
+      email: '',
+      phone: '',
+      nid: '',
+    });
     setUserErrors({});
     setShowUserModal(true);
   };
@@ -114,7 +138,6 @@ export default function UsersPage() {
     setUserErrors({});
     setUserSubmitting(true);
     try {
-      const { apiPatch, apiPost } = await useApi();
       if (editingUser) {
         if (userForm.role !== editingUser.role) {
           await apiPatch(`/auth/users/${editingUser._id}/role`, { role: userForm.role });
@@ -126,14 +149,15 @@ export default function UsersPage() {
         }
       } else {
         const res = await apiPost('/auth/users', userForm);
-        if (res?.temporaryPassword) {
-          toast.success(tr('users.passwordResetSuccess', { password: res.temporaryPassword }), { duration: 10000 });
+        if (res?.data?.emailSent) {
+          toast.success(tr('users.inviteSent'));
         } else {
           toast.success(tr('users.created'));
         }
       }
       setShowUserModal(false);
       reloadUsers();
+      reloadMetrics();
     } catch (err) {
       setUserErrors({ submit: err?.message || tr('error.generic') });
     } finally {
@@ -144,7 +168,6 @@ export default function UsersPage() {
   const handlePasswordReset = async (user) => {
     if (!window.confirm(tr('users.confirmResetPassword'))) return;
     try {
-      const { apiPost } = await useApi();
       const res = await apiPost(`/auth/users/${user._id}/reset-password`, {});
       if (res?.temporaryPassword) {
         toast.success(tr('users.passwordResetSuccess', { password: res.temporaryPassword }), { duration: 10000 });
@@ -160,10 +183,26 @@ export default function UsersPage() {
   const handleStatusToggle = async (userId, nextStatus) => {
     if (!window.confirm(tr('users.confirmStatusChange'))) return;
     try {
-      const { apiPatch } = await useApi();
       await apiPatch(`/auth/users/${userId}/status`, { isActive: nextStatus });
       toast.success(tr('users.statusUpdated'));
       reloadUsers();
+      reloadMetrics();
+    } catch (err) {
+      toast.error(err?.message || tr('error.generic'));
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (user._id === currentUser?._id) {
+      toast.error(tr('users.cannotDeleteSelf'));
+      return;
+    }
+    if (!window.confirm(tr('users.confirmDelete', { name: user.name }))) return;
+    try {
+      await apiDelete(`/auth/users/${user._id}`);
+      toast.success(tr('users.deleted'));
+      reloadUsers();
+      reloadMetrics();
     } catch (err) {
       toast.error(err?.message || tr('error.generic'));
     }
@@ -230,7 +269,7 @@ export default function UsersPage() {
               <Select
                 value={roleFilter}
                 onChange={setRoleFilter}
-                options={[{ value: '', label: tr('users.allRoles') }, ...ROLE_OPTIONS]}
+                options={[{ value: '', label: tr('users.allRoles') }, ...roleOptions]}
                 className="w-40"
               />
               <Select
@@ -308,7 +347,9 @@ export default function UsersPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="badge-slate">{tr(`role.${u.role}`) || u.role}</Badge>
+                        <Badge variant="badge-slate">
+                          {u.role === 'super_admin' ? 'Super Admin' : u.role.replace(/_/g, ' ').toUpperCase()}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={u.isActive ? 'badge-green' : 'badge-red'}>
@@ -323,6 +364,11 @@ export default function UsersPage() {
                           {isSuperAdmin && (
                             <Button variant="ghost" size="sm" onClick={() => handlePasswordReset(u)}>
                               <Icon name="lock" className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isSuperAdmin && u._id !== currentUser?._id && (
+                            <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteUser(u)}>
+                              <Icon name="trash" className="h-4 w-4" />
                             </Button>
                           )}
                           {u._id !== currentUser?._id && (
@@ -349,7 +395,7 @@ export default function UsersPage() {
           <Pagination meta={userMeta} onPage={setUserPage} />
         </div>
 
-        {/* Reusable User Modal from components/ui */}
+        {/* Dynamic roleOptions pass kora hoyeche */}
         <UserEditModal
           open={showUserModal}
           onClose={() => setShowUserModal(false)}
@@ -360,7 +406,7 @@ export default function UsersPage() {
           submitting={userSubmitting}
           onSubmit={handleUserSubmit}
           currentUserId={currentUser?._id}
-          roleOptions={ROLE_OPTIONS}
+          roleOptions={roleOptions}
           tr={tr}
         />
       </div>

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatMoney, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal } from '@/components/ui/common';
 import { FormSection, FormActions } from '@/components/ui/form';
@@ -141,10 +141,10 @@ export default function ApprovalsPage() {
 
     setReviewSubmitting(true);
     try {
-      await useApi().then(({ apiPost }) => apiPost(
+      await apiPost(
         `/approvals/slips/${reviewingSlip._id}/decision`,
         { decision: slipDecision.approved ? 'approved' : 'rejected', reason: slipDecision.reason }
-      ));
+      );
       toast.success(slipDecision.approved ? tr('toast.updated') : tr('toast.updated'));
       closeSlipModal();
       reloadSlips();
@@ -161,10 +161,10 @@ export default function ApprovalsPage() {
 
     setReviewSubmitting(true);
     try {
-      await useApi().then(({ apiPost }) => apiPost(
+      await apiPost(
         `/approvals/${reviewingRequest._id}/decision`,
         requestDecision
-      ));
+      );
       toast.success(requestDecision.decision === 'approved' ? tr('approvals.approveSuccess') : tr('approvals.rejectSuccess'));
       closeRequestModal();
       reloadRequests();

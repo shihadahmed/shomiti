@@ -14,12 +14,15 @@ const userSchema = new mongoose.Schema(
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email address'],
     },
     phone: { type: String, required: true, unique: true, trim: true },
+    nid: { type: String, trim: true, unique: true, sparse: true, index: true },
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: ROLE_VALUES, default: ROLES.MEMBER, index: true },
     member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', default: null },
     isActive: { type: Boolean, default: true },
     mustChangePassword: { type: Boolean, default: false },
     tokenVersion: { type: Number, default: 0, select: false },
+    resetPasswordToken: { type: String, select: false, index: true, sparse: true },
+    resetPasswordExpires: { type: Date, select: false },
     lastLoginAt: Date,
     passwordChangedAt: Date,
   },
@@ -30,6 +33,8 @@ const userSchema = new mongoose.Schema(
       transform: (_doc, ret) => {
         delete ret.passwordHash;
         delete ret.tokenVersion;
+        delete ret.resetPasswordToken;
+        delete ret.resetPasswordExpires;
         delete ret.__v;
         return ret;
       },
