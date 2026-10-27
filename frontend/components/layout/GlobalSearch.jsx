@@ -8,7 +8,7 @@ import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { apiClient } from '@/lib/api';
 import { Icon, formatMoney } from '@/components/ui/common';
-import { menuSectionsForRole } from '@/lib/navigation';
+import { menuSectionsForRole, navLabel, searchHrefsForRole } from '@/lib/navigation';
 
 const MIN_RECORD_QUERY = 2;
 const RECORD_LIMIT = 4;
@@ -256,9 +256,7 @@ export default function GlobalSearch({ className = '' }) {
   const mobileInputRef = useRef(null);
 
   const sources = useMemo(() => {
-    const hrefs = new Set(
-      menuSectionsForRole(user?.role).flatMap((section) => section.items.map((item) => item.href)),
-    );
+    const hrefs = new Set(searchHrefsForRole(user?.role));
     const next = [];
     if (hrefs.has('/members')) {
       next.push({ group: 'members', path: '/members', map: (item) => toMemberResult(item, lang) });
@@ -367,11 +365,11 @@ export default function GlobalSearch({ className = '' }) {
     const rows = [];
 
     for (const section of menuSectionsForRole(user?.role)) {
-      const sectionLabel = tr(section.section);
+      const sectionLabel = navLabel(tr, section.section, section.title);
       for (const item of section.items) {
         if (seen.has(item.href)) continue;
         seen.add(item.href);
-        const label = tr(item.label);
+        const label = navLabel(tr, item.label, item.defaultTitle);
         const keywords = `${label} ${sectionLabel} ${item.href} ${item.label}`.toLowerCase();
         if (!term || keywords.includes(term)) {
           rows.push({

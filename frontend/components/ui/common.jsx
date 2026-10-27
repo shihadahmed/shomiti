@@ -9,6 +9,9 @@ import {
   Shield,
   FileText,
   Book,
+  BookOpen,
+  Folder,
+  ChartColumn,
   Target,
   Plus,
   Search,
@@ -49,8 +52,9 @@ import {
 } from 'lucide-react';
 
 const ICONS = {
-  dashboard: LayoutGrid, users: Users, wallet: Wallet, shield: Shield,
-  file: FileText, book: Book, target: Target, plus: Plus,
+  dashboard: LayoutGrid, grid: LayoutGrid, users: Users, wallet: Wallet, shield: Shield,
+  file: FileText, fileText: FileText, book: Book, bookOpen: BookOpen, folder: Folder,
+  chart: ChartColumn, target: Target, plus: Plus,
   search: Search, logout: LogOut, menu: Menu, close: X,
   chevronRight: ChevronRight, chevronLeft: ChevronLeft, chevronDown: ChevronDown,
   download: Download, upload: Upload, trash: Trash2, edit: PencilLine,

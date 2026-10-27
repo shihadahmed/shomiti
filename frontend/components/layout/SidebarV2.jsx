@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { Icon } from '@/components/ui/common';
-import { menuSectionsForRole } from '@/lib/navigation';
+import { menuSectionsForRole, navLabel } from '@/lib/navigation';
 
 export function Sidebar({ isOpen, onClose, isCollapsed, onCollapseChange, pendingApprovals = 0 }) {
   const pathname = usePathname();
@@ -31,10 +31,6 @@ export function Sidebar({ isOpen, onClose, isCollapsed, onCollapseChange, pendin
     return pathname.startsWith(href);
   };
 
-  const getSectionTitle = (sectionKey) => tr(sectionKey);
-
-  // Desktop: sidebar is either expanded (w-64) or collapsed (w-20)
-  // Mobile: handled by parent via isOpen prop
   const sidebarWidth = isCollapsed ? 'w-20' : 'w-64';
 
   return (
@@ -73,10 +69,7 @@ export function Sidebar({ isOpen, onClose, isCollapsed, onCollapseChange, pendin
           )}
           <button
             type="button"
-            className={`
-              flex-shrink-0 p-1.5 rounded-lg text-brand-500 hover:bg-brand-100 transition
-              lg:inline-flex
-            `}
+            className="flex-shrink-0 p-1.5 rounded-lg text-brand-500 hover:bg-brand-100 transition lg:inline-flex"
             onClick={() => onCollapseChange(!isCollapsed)}
             aria-label={isCollapsed ? tr('sidebar.expand') : tr('sidebar.collapse')}
             aria-expanded={!isCollapsed}
@@ -86,18 +79,20 @@ export function Sidebar({ isOpen, onClose, isCollapsed, onCollapseChange, pendin
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Main menu">
-          {menuConfig.map((section, sectionIndex) => (
-            <React.Fragment key={section.section}>
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4" aria-label="Main menu">
+          {menuConfig.map((section) => (
+            <div key={section.section}>
               {!isCollapsed && (
-                <p className="px-3 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-widest text-brand-400">
-                  {getSectionTitle(section.section)}
+                <p className="px-3 pb-2 pt-2 text-[10px] font-bold uppercase tracking-widest text-brand-400">
+                  {navLabel(tr, section.section, section.title)}
                 </p>
               )}
               <ul className="space-y-1" role="list">
                 {section.items.map((item) => {
                   const active = isActive(item.href);
                   const badgeCount = item.badge === 'pendingApprovals' ? pendingApprovals : 0;
+                  const itemTitle = navLabel(tr, item.label, item.defaultTitle);
+
                   return (
                     <li key={item.href}>
                       <Link
@@ -112,14 +107,14 @@ export function Sidebar({ isOpen, onClose, isCollapsed, onCollapseChange, pendin
                         `}
                         onClick={onClose}
                         aria-current={active ? 'page' : undefined}
-                        title={isCollapsed ? tr(item.label) : undefined}
+                        title={isCollapsed ? itemTitle : undefined}
                       >
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden="true">
                           <Icon name={item.icon} className="h-5 w-5" />
                         </span>
                         {!isCollapsed && (
                           <>
-                            <span className="truncate flex-1">{tr(item.label)}</span>
+                            <span className="truncate flex-1">{itemTitle}</span>
                             {badgeCount > 0 && (
                               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-white/20 text-white' : 'bg-red-100 text-red-700'}`}>
                                 {badgeCount > 99 ? '99+' : badgeCount}
@@ -132,7 +127,7 @@ export function Sidebar({ isOpen, onClose, isCollapsed, onCollapseChange, pendin
                   );
                 })}
               </ul>
-            </React.Fragment>
+            </div>
           ))}
         </nav>
       </aside>

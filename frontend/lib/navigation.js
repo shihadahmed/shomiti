@@ -1,59 +1,243 @@
-export const ROLE_MENU_CONFIG = {
-  super_admin: [
-    { section: 'nav.dashboard', items: [{ href: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
-    { section: 'nav.members', items: [{ href: '/members', label: 'nav.members', icon: 'users' }, { href: '/members/add', label: 'members.add', icon: 'plus' }] },
-    { section: 'nav.users', items: [{ href: '/users', label: 'nav.users', icon: 'users' }] },
-    { section: 'nav.savings', items: [{ href: '/savings', label: 'savings.title', icon: 'wallet' }, { href: '/savings/dues', label: 'savings.dueTitle', icon: 'target' }, { href: '/savings/config', label: 'admin.savingsConfig', icon: 'settings' }] },
-    { section: 'nav.approvals', items: [{ href: '/approvals', label: 'approvals.title', icon: 'shield', badge: 'pendingApprovals' }] },
-    { section: 'nav.expenses', items: [{ href: '/expenses', label: 'expenses.title', icon: 'calendar' }, { href: '/expenses/categories', label: 'expenses.categories', icon: 'target' }] },
-    { section: 'nav.ledger', items: [{ href: '/ledger', label: 'ledger.title', icon: 'book' }] },
-    { section: 'nav.meetings', items: [{ href: '/meetings', label: 'nav.meetings', icon: 'calendar' }] },
-    { section: 'nav.documents', items: [{ href: '/documents', label: 'documents.title', icon: 'file' }] },
-    { section: 'nav.reports', items: [{ href: '/reports', label: 'nav.reports', icon: 'file' }] },
-    { section: 'nav.audit', items: [{ href: '/audit', label: 'nav.audit', icon: 'file' }] },
-    { section: 'nav.system', items: [{ href: '/settings', label: 'nav.system', icon: 'settings' }] },
-  ],
-  treasurer: [
-    { section: 'nav.dashboard', items: [{ href: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
-    { section: 'nav.members', items: [{ href: '/members', label: 'nav.members', icon: 'users' }, { href: '/members/add', label: 'members.add', icon: 'plus' }] },
-    { section: 'nav.savings', items: [{ href: '/savings', label: 'savings.title', icon: 'wallet' }, { href: '/savings/dues', label: 'savings.dueTitle', icon: 'target' }, { href: '/savings/config', label: 'admin.savingsConfig', icon: 'settings' }] },
-    { section: 'nav.approvals', items: [{ href: '/approvals', label: 'approvals.title', icon: 'shield', badge: 'pendingApprovals' }] },
-    { section: 'nav.expenses', items: [{ href: '/expenses', label: 'expenses.title', icon: 'calendar' }, { href: '/expenses/create', label: 'expenses.create', icon: 'plus' }, { href: '/expenses/categories', label: 'expenses.categories', icon: 'target' }] },
-    { section: 'nav.ledger', items: [{ href: '/ledger', label: 'ledger.title', icon: 'book' }] },
-    { section: 'nav.documents', items: [{ href: '/documents', label: 'documents.title', icon: 'file' }] },
-    { section: 'nav.reports', items: [{ href: '/reports', label: 'nav.reports', icon: 'file' }] },
-    { section: 'nav.system', items: [{ href: '/settings', label: 'nav.system', icon: 'settings' }] },
-  ],
-  general_secretary: [
-    { section: 'nav.dashboard', items: [{ href: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
-    { section: 'nav.members', items: [{ href: '/members', label: 'nav.members', icon: 'users' }] },
-    { section: 'nav.savings', items: [{ href: '/savings', label: 'savings.title', icon: 'wallet' }, { href: '/savings/dues', label: 'savings.dueTitle', icon: 'target' }] },
-    { section: 'nav.approvals', items: [{ href: '/approvals', label: 'approvals.title', icon: 'shield', badge: 'pendingApprovals' }] },
-    { section: 'nav.expenses', items: [{ href: '/expenses', label: 'expenses.title', icon: 'calendar' }] },
-    { section: 'nav.documents', items: [{ href: '/documents', label: 'documents.title', icon: 'file' }] },
-    { section: 'nav.meetings', items: [{ href: '/meetings', label: 'nav.meetings', icon: 'calendar' }] },
-    { section: 'nav.reports', items: [{ href: '/reports', label: 'nav.reports', icon: 'file' }] },
-    { section: 'nav.system', items: [{ href: '/settings', label: 'nav.system', icon: 'settings' }] },
-  ],
-  president: [
-    { section: 'nav.dashboard', items: [{ href: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
-    { section: 'nav.approvals', items: [{ href: '/approvals', label: 'approvals.title', icon: 'shield', badge: 'pendingApprovals' }] },
-    { section: 'nav.documents', items: [{ href: '/documents', label: 'documents.title', icon: 'file' }] },
-    { section: 'nav.reports', items: [{ href: '/reports', label: 'nav.reports', icon: 'file' }] },
-  ],
-  member: [
-    { section: 'nav.dashboard', items: [{ href: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
-    { section: 'nav.profile', items: [{ href: '/profile', label: 'settings.memberProfile', icon: 'user' }] },
-    { section: 'nav.savings', items: [{ href: '/savings/my', label: 'settings.mySavings', icon: 'wallet' }, { href: '/savings/my/schemes', label: 'savings.mySchemes', icon: 'target' }, { href: '/savings/my/dues', label: 'settings.dues', icon: 'target' }] },
-    { section: 'nav.payments', items: [{ href: '/payments', label: 'settings.payNow', icon: 'creditCard' }, { href: '/payments/offline', label: 'settings.submitOfflinePayment', icon: 'upload' }] },
-    { section: 'nav.documents', items: [{ href: '/documents/my', label: 'settings.myDocuments', icon: 'file' }, { href: '/certificate', label: 'settings.membershipCertificate', icon: 'award' }] },
-    { section: 'nav.reports', items: [{ href: '/statement', label: 'statement.title', icon: 'file' }] },
-    { section: 'nav.settings', items: [{ href: '/notifications', label: 'settings.notifications', icon: 'bell' }] },
-  ],
+const ALL_ROLES = ['super_admin', 'treasurer', 'general_secretary', 'president', 'member'];
+const STAFF_ROLES = ['super_admin', 'treasurer', 'general_secretary', 'president'];
+
+/**
+ * Canonical sidebar layout: every role sees the same four sections, with
+ * items filtered by role. Empty sections are dropped automatically.
+ */
+const NAV_SECTIONS = [
+  {
+    section: 'nav.section.core',
+    title: 'Core',
+    items: [
+      {
+        href: '/dashboard',
+        label: 'nav.dashboard',
+        defaultTitle: 'Dashboard',
+        icon: 'grid',
+        roles: ALL_ROLES,
+      },
+    ],
+  },
+  {
+    section: 'nav.section.finance',
+    title: 'Finance & Operations',
+    items: [
+      {
+        href: '/savings',
+        label: 'nav.savings',
+        defaultTitle: 'Savings & Schemes',
+        icon: 'wallet',
+        roles: ['super_admin', 'treasurer', 'general_secretary'],
+      },
+      {
+        href: '/savings/my',
+        label: 'settings.mySavings',
+        defaultTitle: 'My Savings',
+        icon: 'wallet',
+        roles: ['member'],
+      },
+      {
+        href: '/savings/my/schemes',
+        label: 'savings.mySchemes',
+        defaultTitle: 'My Schemes',
+        icon: 'target',
+        roles: ['member'],
+      },
+      {
+        href: '/savings/my/dues',
+        label: 'settings.dues',
+        defaultTitle: 'My Dues',
+        icon: 'target',
+        roles: ['member'],
+      },
+      {
+        href: '/expenses',
+        label: 'nav.expenses',
+        defaultTitle: 'Expenses',
+        icon: 'fileText',
+        roles: ['super_admin', 'treasurer', 'general_secretary'],
+      },
+      {
+        href: '/payments',
+        label: 'settings.payNow',
+        defaultTitle: 'Pay Now',
+        icon: 'creditCard',
+        roles: ['member'],
+      },
+      {
+        href: '/payments/offline',
+        label: 'settings.submitOfflinePayment',
+        defaultTitle: 'Submit Offline Payment',
+        icon: 'upload',
+        roles: ['member'],
+      },
+      {
+        href: '/ledger',
+        label: 'nav.ledger',
+        defaultTitle: 'General Ledger',
+        icon: 'bookOpen',
+        roles: ['super_admin', 'treasurer'],
+      },
+      {
+        href: '/approvals',
+        label: 'nav.approvals',
+        defaultTitle: 'Approvals',
+        icon: 'shield',
+        badge: 'pendingApprovals',
+        roles: STAFF_ROLES,
+      },
+    ],
+  },
+  {
+    section: 'nav.section.communication',
+    title: 'Communication & Assets',
+    items: [
+      {
+        href: '/meetings',
+        label: 'nav.meetings',
+        defaultTitle: 'Meetings & Notices',
+        icon: 'calendar',
+        roles: ['super_admin', 'general_secretary'],
+      },
+      {
+        href: '/documents',
+        label: 'nav.documents',
+        defaultTitle: 'Document Vault',
+        icon: 'folder',
+        roles: ['super_admin', 'treasurer', 'general_secretary', 'president'],
+      },
+      {
+        href: '/documents/my',
+        label: 'settings.myDocuments',
+        defaultTitle: 'My Documents',
+        icon: 'folder',
+        roles: ['member'],
+      },
+      {
+        href: '/certificate',
+        label: 'settings.membershipCertificate',
+        defaultTitle: 'Membership Certificate',
+        icon: 'award',
+        roles: ['member'],
+      },
+    ],
+  },
+  {
+    section: 'nav.section.system',
+    title: 'System & Insights',
+    items: [
+      {
+        href: '/members',
+        label: 'nav.members',
+        defaultTitle: 'Members',
+        icon: 'users',
+        roles: ['super_admin', 'treasurer', 'general_secretary'],
+      },
+      {
+        href: '/users',
+        label: 'nav.users',
+        defaultTitle: 'Users & Roles',
+        icon: 'shield',
+        roles: ['super_admin'],
+      },
+      {
+        href: '/reports',
+        label: 'nav.reports',
+        defaultTitle: 'Reports',
+        icon: 'chart',
+        roles: STAFF_ROLES,
+      },
+      {
+        href: '/audit',
+        label: 'nav.audit',
+        defaultTitle: 'Audit Logs',
+        icon: 'clock',
+        roles: ['super_admin'],
+      },
+      {
+        href: '/settings',
+        label: 'nav.settings',
+        defaultTitle: 'Settings',
+        icon: 'settings',
+        roles: ['super_admin', 'treasurer', 'general_secretary'],
+      },
+      {
+        href: '/profile',
+        label: 'settings.memberProfile',
+        defaultTitle: 'Member Profile',
+        icon: 'user',
+        roles: ['member'],
+      },
+      {
+        href: '/statement',
+        label: 'statement.title',
+        defaultTitle: 'Transaction Statement',
+        icon: 'fileText',
+        roles: ['member'],
+      },
+      {
+        href: '/notifications',
+        label: 'settings.notifications',
+        defaultTitle: 'Notifications',
+        icon: 'bell',
+        roles: ['member'],
+      },
+    ],
+  },
+];
+
+/**
+ * Routes that stay reachable from global search even though they are no
+ * longer standalone sidebar links (e.g. the dues tab inside Savings).
+ */
+const SEARCH_ONLY_HREFS = {
+  super_admin: ['/savings/dues'],
+  treasurer: ['/savings/dues'],
+  general_secretary: ['/savings/dues'],
 };
 
-export function menuSectionsForRole(role) {
-  return ROLE_MENU_CONFIG[role] || ROLE_MENU_CONFIG.member;
+function resolveRole(role) {
+  return ALL_ROLES.includes(role) ? role : 'member';
 }
+
+function stripRoles({ roles, ...item }) {
+  return item;
+}
+
+/** Section + item list for a role, keeping only the items that role may see. */
+export function menuSectionsForRole(role) {
+  const resolvedRole = resolveRole(role);
+  return NAV_SECTIONS.map(({ items, ...section }) => ({
+    ...section,
+    items: items.filter((item) => item.roles.includes(resolvedRole)).map(stripRoles),
+  })).filter((section) => section.items.length > 0);
+}
+
+/** Every href a role can reach, including search-only shortcuts. */
+export function searchHrefsForRole(role) {
+  const resolvedRole = resolveRole(role);
+  const hrefs = menuSectionsForRole(resolvedRole).flatMap((section) =>
+    section.items.map((item) => item.href),
+  );
+  return Array.from(new Set([...hrefs, ...(SEARCH_ONLY_HREFS[resolvedRole] || [])]));
+}
+
+/** Resolve a nav label, falling back to a readable title when a key is missing. */
+export function navLabel(tr, key, fallback) {
+  if (key) {
+    const translated = tr(key);
+    if (translated && translated !== key) return translated;
+  }
+  if (fallback) return fallback;
+  const last = String(key || '').split('.').pop() || '';
+  const spaced = last.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').trim();
+  return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : '';
+}
+
+/** Backwards-compatible per-role snapshot of the sidebar. */
+export const ROLE_MENU_CONFIG = Object.fromEntries(
+  ALL_ROLES.map((role) => [role, menuSectionsForRole(role)]),
+);
 
 export default ROLE_MENU_CONFIG;
