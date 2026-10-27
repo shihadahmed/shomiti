@@ -197,6 +197,10 @@ export default function UsersPage() {
       toast.error(tr('users.cannotDeleteSelf'));
       return;
     }
+    if (user.role === 'super_admin') {
+      toast.error('Super Admin account cannot be deleted.');
+      return;
+    }
     if (!window.confirm(tr('users.confirmDelete', { name: user.name }))) return;
     try {
       await apiDelete(`/auth/users/${user._id}`);
@@ -366,7 +370,7 @@ export default function UsersPage() {
                               <Icon name="lock" className="h-4 w-4" />
                             </Button>
                           )}
-                          {isSuperAdmin && u._id !== currentUser?._id && (
+                          {isSuperAdmin && u._id !== currentUser?._id && u.role !== 'super_admin' && (
                             <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteUser(u)}>
                               <Icon name="trash" className="h-4 w-4" />
                             </Button>
@@ -379,7 +383,9 @@ export default function UsersPage() {
                                 </Button>
                               }
                               items={[
-                                { label: tr('users.changeRole'), onClick: () => openEditUser(u), icon: 'users' },
+                                ...(u.role !== 'super_admin'
+                                  ? [{ label: tr('users.changeRole'), onClick: () => openEditUser(u), icon: 'users' }]
+                                  : []),
                                 { label: tr('users.changeStatus'), onClick: () => handleStatusToggle(u._id, !u.isActive), icon: u.isActive ? 'alert' : 'check' },
                               ]}
                             />

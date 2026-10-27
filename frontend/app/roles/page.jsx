@@ -203,6 +203,14 @@ export default function RolesPage() {
   };
 
   const handleDeleteRole = async (role) => {
+    if (role.name === 'super_admin') {
+      toast.error('Super Admin role cannot be deleted.');
+      return;
+    }
+    if (role.isSystemLocked) {
+      toast.error(tr('roles.systemRoleProtected'));
+      return;
+    }
     if (role.userCount > 0) {
       toast.error(tr('roles.cannotDeleteInUse', { count: role.userCount }));
       return;
@@ -347,9 +355,11 @@ export default function RolesPage() {
                           <Button variant="ghost" size="sm" onClick={() => openEditRole(r)}>
                             <Icon name="edit" className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteRole(r)}>
-                            <Icon name="trash" className="h-4 w-4" />
-                          </Button>
+                          {!r.isSystemLocked && (
+                            <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteRole(r)}>
+                              <Icon name="trash" className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

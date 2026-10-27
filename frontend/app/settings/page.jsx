@@ -10,7 +10,6 @@ import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, fo
 import toast from 'react-hot-toast';
 
 const ROLE_OPTIONS = [
-  { value: 'super_admin', label: 'role.super_admin' },
   { value: 'treasurer', label: 'role.treasurer' },
   { value: 'general_secretary', label: 'role.general_secretary' },
   { value: 'president', label: 'role.president' },
@@ -72,8 +71,8 @@ export default function SettingsPage() {
     }
   }, [mounted, checking, isAuthenticated, router]);
 
-  // User Management Actions
-  const handleRoleChange = async (userId, newRole, userName) => {    const current = window.prompt(tr('password.current'));
+  const handleChangePassword = async () => {
+    const current = window.prompt(tr('password.current'));
     if (!current) return;
     const newPass = window.prompt(tr('password.new'));
     if (!newPass) return;
@@ -479,6 +478,4 @@ function AuditLogView({ logs, meta, loading, error, page, setPage }) {
       <Pagination meta={meta} onPage={setPage} />
     </div>
   );
-}
-
 }
