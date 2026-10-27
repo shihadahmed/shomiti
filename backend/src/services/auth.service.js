@@ -345,17 +345,12 @@ export async function deleteUser(userId, actor, req) {
     throw ApiError.notFound('User not found.', 'USER_NOT_FOUND');
   }
 
-  if (user.role === ROLES.SUPER_ADMIN && user.isActive) {
-    const activeSuperAdmins = await User.countDocuments({
-      role: ROLES.SUPER_ADMIN,
-      isActive: true,
-    });
-    if (activeSuperAdmins <= 1) {
-      throw ApiError.badRequest(
-        'Cannot delete the last active Super Admin. At least one active Super Admin must exist.',
-        'LAST_SUPER_ADMIN_PROTECTION'
-      );
-    }
+  // Prevent deletion of any super_admin account
+  if (user.role === ROLES.SUPER_ADMIN) {
+    throw ApiError.badRequest(
+      'Super Admin account cannot be deleted.',
+      'SUPER_ADMIN_DELETE_FORBIDDEN'
+    );
   }
 
   await writeAudit({

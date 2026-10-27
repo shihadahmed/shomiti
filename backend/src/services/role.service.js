@@ -57,6 +57,9 @@ export async function listRoles(query = {}) {
     ];
   }
 
+  // Hide super_admin role from role lists
+  filter.name = { $ne: 'super_admin' };
+
   const [roles, total] = await Promise.all([
     Role.find(filter)
       .sort({ isSystemLocked: -1, name: 1 })
@@ -186,6 +189,19 @@ export async function deleteRole(roleId, actor, req) {
   const role = await Role.findById(roleId);
   if (!role) {
     throw ApiError.notFound('Role not found.', 'ROLE_NOT_FOUND');
+  }
+
+  // Prevent deletion of super_admin role
+  if (role.name === 'super_admin') {
+    throw ApiError.badRequest(
+      'Super Admin role cannot be deleted.',
+      'SUPER_ADMIN_ROLE_DELETE_FORBIDDEN'
+    );
+  }
+
+  // Prevent deleting any system-locked role
+  if (role.isSystemLocked) {
+    throw ApiError.badRequest('Cannot delete system-locked roles.', 'SYSTEM_ROLE_DELETE_FORBIDDEN');
   }
 
   // Check if any users are assigned this role

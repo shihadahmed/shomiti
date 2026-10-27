@@ -41,7 +41,7 @@ export const createStaffRules = [
 export const updateUserRoleRules = [
   param('id').isMongoId().withMessage('validation.identifier'),
   body('role')
-    .isIn(ROLE_VALUES)
+    .isIn(ROLE_VALUES.filter((role) => role !== ROLES.SUPER_ADMIN))
     .withMessage('validation.enum'),
 ];
 
