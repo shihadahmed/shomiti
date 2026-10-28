@@ -5,6 +5,13 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { apiClient, ApiError } from './api';
 import { t } from './i18n';
 
+if (typeof window !== 'undefined') {
+  try {
+    window.localStorage.removeItem('shomiti-auth');
+    window.localStorage.removeItem('shomiti.remember');
+  } catch {}
+}
+
 const rolePermissions = {
   super_admin: { finance: true, approve: true, members: true, ledger: true },
   treasurer: { finance: true, approve: true, members: true, ledger: true },
@@ -35,7 +42,7 @@ export const useAuthStore = create(
       error: null,
       lastSessionFetch: 0,
 
-      login: async (identifier, password, rememberMe = false) => {
+      login: async (identifier, password) => {
         set({ isLoading: true, error: null });
         try {
           const res = await apiClient.post('/auth/login', { identifier, password });
@@ -47,9 +54,6 @@ export const useAuthStore = create(
             isLoading: false,
             error: null,
           });
-          if (typeof window !== 'undefined' && rememberMe) {
-            try { localStorage.setItem('shomiti.remember', '1'); } catch {}
-          }
           return true;
         } catch (error) {
           set({
@@ -131,7 +135,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'shomiti-auth',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         user: state.user,
         token: state.token,

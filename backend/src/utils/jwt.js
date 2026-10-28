@@ -28,5 +28,4 @@ export const cookieOptions = () => ({
   secure: config.isProduction,
   sameSite: 'lax',
   path: '/',
-  maxAge: config.jwt.cookieMaxAgeMs,
 });

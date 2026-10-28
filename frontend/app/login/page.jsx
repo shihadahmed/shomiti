@@ -26,7 +26,6 @@ export default function LoginPage() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [nextUrl, setNextUrl] = useState('/dashboard');
@@ -47,7 +46,7 @@ export default function LoginPage() {
     event.preventDefault();
     if (isLoading) return;
     clearError();
-    const success = await login(identifier.trim(), password, rememberMe);
+    const success = await login(identifier.trim(), password);
     if (success) router.replace(nextUrl);
   };
 
@@ -235,16 +234,7 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <label className="inline-flex cursor-pointer items-center gap-2 select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(event) => setRememberMe(event.target.checked)}
-                    className="h-4 w-4 rounded border-brand-200 text-brand-700 transition focus:ring-2 focus:ring-brand-700/20"
-                  />
-                  <span className="text-sm text-brand-700">{tr('login.rememberMe')}</span>
-                </label>
+              <div className="flex items-center justify-end gap-3">
                 <button
                   type="button"
                   className="text-sm font-medium text-brand-700 transition hover:text-brand-900 hover:underline"

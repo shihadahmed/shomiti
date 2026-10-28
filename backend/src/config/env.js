@@ -86,7 +86,6 @@ const config = {
     secret: process.env.JWT_SECRET || (isLocal ? 'dev-only-insecure-secret-change-me' : ''),
     expiresIn: process.env.JWT_EXPIRES_IN || '8h',
     cookieName: process.env.COOKIE_NAME || 'sn_token',
-    cookieMaxAgeMs: int(process.env.COOKIE_MAX_AGE_MS, 8 * 60 * 60 * 1000),
   },
   corsOrigins: (process.env.CLIENT_ORIGIN || (isLocal ? 'http://localhost:3000,http://localhost:5173' : ''))
     .split(',')

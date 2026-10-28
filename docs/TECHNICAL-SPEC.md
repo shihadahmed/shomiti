@@ -97,7 +97,7 @@ Each assumption must be confirmed or amended by the output of the Phase 0 audit 
 | Root layout & metadata | `frontend/app/layout.jsx` | Contains a defect: `import { Metadata } from 'next'` imports a type as a value |
 | Shell (sidebar/topbar/search) | `frontend/components/layout/*.jsx` | `AppShell`, `SidebarV2`, `GlobalSearch`, `SearchParamSync` |
 | UI primitives | `frontend/components/ui/{common,form}.jsx` | Button, Input, Select, Modal, Table, Badge, Progress, Tabs |
-| Zustand auth store | `frontend/lib/auth.js` | Persisted in `localStorage`; must move to server-verified session |
+| Zustand auth store | `frontend/lib/auth.js` | Persisted in `sessionStorage`; cleared when the browser session ends |
 | Axios client | `frontend/lib/api.js` | Error normalisation → `ApiError` |
 | i18n dictionaries | `frontend/lib/i18n.js` | `en` + `bn` key/value maps (large; split during migration) |
 | Role navigation | `frontend/lib/navigation.js` | Role → menu sections |
@@ -115,7 +115,7 @@ Each assumption must be confirmed or amended by the output of the Phase 0 audit 
 | Duplicate login page | Both `/` and `/login` render a sign-in screen | `/` becomes the public marketing home; `/login` is the only auth entry |
 | Type-only import as value | `app/layout.jsx` line 1 | Convert to `import type { Metadata } from 'next'` |
 | Client-side-only auth gate | `AppShell` decides access after `loadSession()` resolves | Add `middleware.ts` edge check + server layout guard |
-| Token in `localStorage` | `lib/auth.js` `persist(...)` | Session cookie (`HttpOnly`) is authoritative; store only user profile locally |
+| Token in browser storage | `lib/auth.js` `persist(...)` | Session cookie (`HttpOnly`) is authoritative; store only user profile locally |
 | i18n monolith | `lib/i18n.js` ≈ 1,100 lines | Split into namespaced dictionaries; keep keys stable |
 | No tests on frontend | `frontend/package.json` has only `lint` | Add Vitest + Playwright (§23) |
 
@@ -552,7 +552,7 @@ Rules: no `parseFloat` outside `money.ts`; all rounding is explicit (`Math.round
 4. Client receives only the profile (no token). `localStorage` keeps **UI preferences** (locale, sidebar state), not credentials.
 5. `401` from any call → clear session → redirect with `next`.
 
-> Migration note: `lib/auth.js` currently persists `token` in `localStorage`. Removing that is a **security fix**, not a refactor. Cookie must be `HttpOnly` so XSS cannot exfiltrate a session.
+> Migration note: `lib/auth.js` currently persists `token` in `sessionStorage`. Removing that is a **security fix**, not a refactor. Cookie must be `HttpOnly` so XSS cannot exfiltrate a session.
 
 ### 11.2 Roles
 
@@ -608,7 +608,7 @@ UI hiding is **cosmetic only**; every mutation is re-checked server-side.
 
 ### 11.6 Session lifetime
 
-Cookie `Max-Age` 8 h (configurable `COOKIE_MAX_AGE_MS`). `Remember me` extends to 30 days. Idle timeout warning at 25 min (client), hard expiry at 30 min for financial actions.
+Cookie is a browser session cookie (no `Max-Age`/`Expires`), so it is cleared when the browser closes. `Remember me` is not supported. Idle timeout warning at 25 min (client), hard expiry at 30 min for financial actions.
 
 ---
 
@@ -1022,7 +1022,7 @@ Techniques: RSC-first, dynamic import for charts/PDF, `next/font`, `next/image`,
 | Control | Specification |
 |---|---|
 | Transport | HTTPS only; HSTS `max-age=31536000; includeSubDomains; preload` |
-| Session | `HttpOnly; Secure; SameSite=Lax` cookie, 8 h (30 d with remember-me) |
+| Session | `HttpOnly; Secure; SameSite=Lax` session cookie (cleared on browser close) |
 | CSRF | `X-Requested-With` custom header requirement (already enforced) + SameSite cookie + Origin allowlist |
 | CSP | `default-src 'self'`; no `unsafe-eval`; `style-src 'self' 'unsafe-inline'` only if required by Tailwind runtime (should be none); `frame-ancestors 'self'` |
 | Headers | `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimal |
