@@ -1,12 +1,27 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { useApi, apiPost } from '@/lib/useApi';
-import AppShell from '@/components/layout/AppShell';
-import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatMoney, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal } from '@/components/ui/common';
+import AppShell, { decrementApprovalsTotal } from '@/components/layout/AppShell';
+import {
+  Icon,
+  Button,
+  Input,
+  Select,
+  PageHeader,
+  EmptyState,
+  LoadingSpinner,
+  formatMoney,
+  formatDate,
+  StatusBadge,
+  Pagination,
+  SearchInput,
+  FilterBar,
+  Modal,
+} from '@/components/ui/common';
 import { FormSection, FormActions } from '@/components/ui/form';
 
 const SLIP_STATUSES = [
@@ -56,27 +71,44 @@ export default function ApprovalsPage() {
   const [requestDecision, setRequestDecision] = useState({ decision: 'approved', note: '' });
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
-  const slipParams = {
-    page: slipPage,
-    limit: 15,
-    search: slipSearch || undefined,
-    status: slipStatusFilter,
-    method: slipMethodFilter,
-  };
+  // useMemo prevents new object references on every render cycle
+  const slipParams = useMemo(
+    () => ({
+      page: slipPage,
+      limit: 15,
+      search: slipSearch || undefined,
+      status: slipStatusFilter || undefined,
+      method: slipMethodFilter || undefined,
+    }),
+    [slipPage, slipSearch, slipStatusFilter, slipMethodFilter]
+  );
 
-  const requestParams = {
-    page: requestPage,
-    limit: 15,
-    search: requestSearch || undefined,
-    status: requestStatusFilter,
-  };
+  const requestParams = useMemo(
+    () => ({
+      page: requestPage,
+      limit: 15,
+      search: requestSearch || undefined,
+      status: requestStatusFilter || undefined,
+    }),
+    [requestPage, requestSearch, requestStatusFilter]
+  );
 
-  const { data: slipData, loading: slipLoading, error: slipError, reload: reloadSlips } = useApi('/approvals/slips', slipParams, {
-    enabled: isAuthenticated && activeTab === 'slips',
+  const {
+    data: slipData,
+    loading: slipLoading,
+    error: slipError,
+    reload: reloadSlips,
+  } = useApi('/approvals/slips', slipParams, {
+    enabled: Boolean(isAuthenticated && activeTab === 'slips'),
   });
 
-  const { data: requestData, loading: requestLoading, error: requestError, reload: reloadRequests } = useApi('/approvals', requestParams, {
-    enabled: isAuthenticated && activeTab === 'requests',
+  const {
+    data: requestData,
+    loading: requestLoading,
+    error: requestError,
+    reload: reloadRequests,
+  } = useApi('/approvals', requestParams, {
+    enabled: Boolean(isAuthenticated && activeTab === 'requests'),
   });
 
   useEffect(() => {
@@ -85,7 +117,9 @@ export default function ApprovalsPage() {
     Promise.resolve().then(() => {
       if (active) setChecking(false);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -94,17 +128,23 @@ export default function ApprovalsPage() {
     }
   }, [mounted, checking, isAuthenticated, router]);
 
-  const handleSlipSearch = useCallback((e) => {
-    e.preventDefault();
-    setSlipPage(1);
-    reloadSlips();
-  }, [reloadSlips]);
+  const handleSlipSearch = useCallback(
+    (e) => {
+      e.preventDefault();
+      setSlipPage(1);
+      reloadSlips?.();
+    },
+    [reloadSlips]
+  );
 
-  const handleRequestSearch = useCallback((e) => {
-    e.preventDefault();
-    setRequestPage(1);
-    reloadRequests();
-  }, [reloadRequests]);
+  const handleRequestSearch = useCallback(
+    (e) => {
+      e.preventDefault();
+      setRequestPage(1);
+      reloadRequests?.();
+    },
+    [reloadRequests]
+  );
 
   const openSlipReview = (slip) => {
     setReviewingSlip(slip);
@@ -141,13 +181,13 @@ export default function ApprovalsPage() {
 
     setReviewSubmitting(true);
     try {
-      await apiPost(
-        `/approvals/slips/${reviewingSlip._id}/decision`,
-        { decision: slipDecision.approved ? 'approved' : 'rejected', reason: slipDecision.reason }
-      );
-      toast.success(slipDecision.approved ? tr('toast.updated') : tr('toast.updated'));
+      await apiPost(`/approvals/slips/${reviewingSlip._id}/decision`, {
+        decision: slipDecision.approved ? 'approved' : 'rejected',
+        reason: slipDecision.reason,
+      });
+      if (reviewingSlip.status === 'pending') decrementApprovalsTotal();
       closeSlipModal();
-      reloadSlips();
+      reloadSlips?.();
     } catch (requestError) {
       alert(requestError?.message || tr('error.generic'));
     } finally {
@@ -161,13 +201,12 @@ export default function ApprovalsPage() {
 
     setReviewSubmitting(true);
     try {
-      await apiPost(
-        `/approvals/${reviewingRequest._id}/decision`,
-        requestDecision
-      );
-      toast.success(requestDecision.decision === 'approved' ? tr('approvals.approveSuccess') : tr('approvals.rejectSuccess'));
+      await apiPost(`/approvals/${reviewingRequest._id}/decision`, requestDecision);
+      const closesRequest = requestDecision.decision === 'rejected'
+        || (reviewingRequest.approvalCount || 0) + 1 >= (reviewingRequest.requiredApprovals || 1);
+      if (reviewingRequest.status === 'pending' && closesRequest) decrementApprovalsTotal();
       closeRequestModal();
-      reloadRequests();
+      reloadRequests?.();
     } catch (requestError) {
       alert(requestError?.message || tr('error.generic'));
     } finally {
@@ -194,26 +233,45 @@ export default function ApprovalsPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        title={tr('approvals.title')}
-        subtitle={tr('approvals.subtitle')}
-      />
+      <PageHeader title={tr('approvals.title')} subtitle={tr('approvals.subtitle')} />
 
       <div className="mb-6 border-b border-brand-200">
         <nav className="flex gap-1" aria-label="Tabs">
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${activeTab === 'slips' ? 'bg-brand-700 text-white' : 'text-brand-700 hover:bg-brand-100'}`}
+            className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${
+              activeTab === 'slips'
+                ? 'bg-brand-700 text-white'
+                : 'text-brand-700 hover:bg-brand-100'
+            }`}
             onClick={() => setActiveTab('slips')}
           >
-            {tr('approvals.paymentSlips')} <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'slips' ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700'}`}>{slipMeta.total || 0}</span>
+            {tr('approvals.paymentSlips')}{' '}
+            <span
+              className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${
+                activeTab === 'slips' ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700'
+              }`}
+            >
+              {slipMeta.total || 0}
+            </span>
           </button>
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${activeTab === 'requests' ? 'bg-brand-700 text-white' : 'text-brand-700 hover:bg-brand-100'}`}
+            className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${
+              activeTab === 'requests'
+                ? 'bg-brand-700 text-white'
+                : 'text-brand-700 hover:bg-brand-100'
+            }`}
             onClick={() => setActiveTab('requests')}
           >
-            {tr('approvals.approvalRequests')} <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'requests' ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700'}`}>{requestMeta.total || 0}</span>
+            {tr('approvals.approvalRequests')}{' '}
+            <span
+              className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${
+                activeTab === 'requests' ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700'
+              }`}
+            >
+              {requestMeta.total || 0}
+            </span>
           </button>
         </nav>
       </div>
@@ -275,14 +333,22 @@ export default function ApprovalsPage() {
                           <td className="td font-mono text-brand-900">{slip.paymentNo}</td>
                           <td className="td text-brand-700">{formatDate(slip.createdAt)}</td>
                           <td className="td font-medium text-brand-900">
-                            {lang === 'bn' && slip.member?.fullNameBn ? slip.member.fullNameBn : slip.member?.fullName || '-'}
+                            {lang === 'bn' && slip.member?.fullNameBn
+                              ? slip.member.fullNameBn
+                              : slip.member?.fullName || '-'}
                             <br />
                             <span className="text-xs text-brand-500 font-mono">{slip.member?.code}</span>
                           </td>
-                          <td className="td capitalize">{slip.savingsDue?.savingsType ? tr(`savings.${slip.savingsDue.savingsType}`) : '-'}</td>
-                          <td className="td font-mono font-semibold text-brand-900">{formatMoney(slip.amountPaisa || 0)}</td>
+                          <td className="td capitalize">
+                            {slip.savingsDue?.savingsType ? tr(`savings.${slip.savingsDue.savingsType}`) : '-'}
+                          </td>
+                          <td className="td font-mono font-semibold text-brand-900">
+                            {formatMoney(slip.amountPaisa || 0)}
+                          </td>
                           <td className="td capitalize">{tr(`method.${slip.method}`)}</td>
-                          <td className="td"><StatusBadge status={slip.status} /></td>
+                          <td className="td">
+                            <StatusBadge status={slip.status} />
+                          </td>
                           <td className="td text-brand-700">{slip.createdBy?.name || '-'}</td>
                           <td className="td">
                             <button
@@ -356,13 +422,23 @@ export default function ApprovalsPage() {
                           <td className="td font-mono text-brand-900">{request.requestNo}</td>
                           <td className="td text-brand-700">{formatDate(request.createdAt)}</td>
                           <td className="td font-medium text-brand-900">
-                            {lang === 'bn' && request.requestedBy?.nameBn ? request.requestedBy.nameBn : request.requestedBy?.name || '-'}
+                            {lang === 'bn' && request.requestedBy?.nameBn
+                              ? request.requestedBy.nameBn
+                              : request.requestedBy?.name || '-'}
                             <br />
-                            <span className="text-xs text-brand-500">{tr(`role.${request.requestedBy?.role}`)}</span>
+                            <span className="text-xs text-brand-500">
+                              {tr(`role.${request.requestedBy?.role}`)}
+                            </span>
                           </td>
-                          <td className="td capitalize">{tr(`approvals.entity.${request.entityType}`) || request.entityType}</td>
-                          <td className="td font-mono font-semibold text-brand-900">{formatMoney(request.amountPaisa || 0)}</td>
-                          <td className="td"><StatusBadge status={request.status} /></td>
+                          <td className="td capitalize">
+                            {tr(`approvals.entity.${request.entityType}`) || request.entityType}
+                          </td>
+                          <td className="td font-mono font-semibold text-brand-900">
+                            {formatMoney(request.amountPaisa || 0)}
+                          </td>
+                          <td className="td">
+                            <StatusBadge status={request.status} />
+                          </td>
                           <td className="td">
                             <span className="text-sm text-brand-700">
                               {request.approvalCount || 0} / {request.requiredApprovals || 1}
@@ -437,11 +513,15 @@ function SlipReviewModal({ open, onClose, slip, decision, onDecisionChange, subm
             </div>
             <div>
               <p className="text-brand-500">{tr('savings.type')}</p>
-              <p className="font-semibold text-brand-900 capitalize">{slip.savingsDue?.savingsType ? tr(`savings.${slip.savingsDue.savingsType}`) : '-'}</p>
+              <p className="font-semibold text-brand-900 capitalize">
+                {slip.savingsDue?.savingsType ? tr(`savings.${slip.savingsDue.savingsType}`) : '-'}
+              </p>
             </div>
             <div className="sm:col-span-2">
               <p className="text-brand-500">{tr('savings.amount')}</p>
-              <p className="font-mono text-2xl font-bold text-brand-900">{formatMoney(slip.amountPaisa || 0)}</p>
+              <p className="font-mono text-2xl font-bold text-brand-900">
+                {formatMoney(slip.amountPaisa || 0)}
+              </p>
             </div>
             <div className="sm:col-span-2">
               <p className="text-brand-500">{tr('savings.method')}</p>
@@ -482,7 +562,9 @@ function SlipReviewModal({ open, onClose, slip, decision, onDecisionChange, subm
                 name="slip-decision"
                 value="approved"
                 checked={decision.approved}
-                onChange={(e) => onDecisionChange({ ...decision, approved: e.target.value === 'approved' })}
+                onChange={(e) =>
+                  onDecisionChange({ ...decision, approved: e.target.value === 'approved' })
+                }
                 className="h-4 w-4 text-brand-700"
               />
               <span className="font-medium text-brand-900">{tr('approvals.approve')}</span>
@@ -493,7 +575,9 @@ function SlipReviewModal({ open, onClose, slip, decision, onDecisionChange, subm
                 name="slip-decision"
                 value="rejected"
                 checked={!decision.approved}
-                onChange={(e) => onDecisionChange({ ...decision, approved: e.target.value === 'approved' })}
+                onChange={(e) =>
+                  onDecisionChange({ ...decision, approved: e.target.value === 'approved' })
+                }
                 className="h-4 w-4 text-red-600"
               />
               <span className="font-medium text-brand-900">{tr('approvals.reject')}</span>
@@ -512,8 +596,15 @@ function SlipReviewModal({ open, onClose, slip, decision, onDecisionChange, subm
         </FormSection>
 
         <FormActions>
-          <Button type="button" variant="secondary" onClick={onClose}>{tr('common.cancel')}</Button>
-          <Button type="submit" variant={decision.approved ? 'primary' : 'danger'} loading={submitting} loadingLabel={tr('common.saving')}>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {tr('common.cancel')}
+          </Button>
+          <Button
+            type="submit"
+            variant={decision.approved ? 'primary' : 'danger'}
+            loading={submitting}
+            loadingLabel={tr('common.saving')}
+          >
             {decision.approved ? tr('approvals.approve') : tr('approvals.reject')}
           </Button>
         </FormActions>
@@ -546,11 +637,15 @@ function RequestReviewModal({ open, onClose, request, decision, onDecisionChange
             </div>
             <div>
               <p className="text-brand-500">{tr('approvals.entity')}</p>
-              <p className="font-semibold text-brand-900 capitalize">{tr(`approvals.entity.${request.entityType}`) || request.entityType}</p>
+              <p className="font-semibold text-brand-900 capitalize">
+                {tr(`approvals.entity.${request.entityType}`) || request.entityType}
+              </p>
             </div>
             <div className="sm:col-span-2">
               <p className="text-brand-500">{tr('approvals.amount')}</p>
-              <p className="font-mono text-2xl font-bold text-brand-900">{formatMoney(request.amountPaisa || 0)}</p>
+              <p className="font-mono text-2xl font-bold text-brand-900">
+                {formatMoney(request.amountPaisa || 0)}
+              </p>
             </div>
             <div className="sm:col-span-2">
               <p className="text-brand-500">{tr('approvals.action')}</p>
@@ -565,7 +660,9 @@ function RequestReviewModal({ open, onClose, request, decision, onDecisionChange
             {request.metadata && Object.keys(request.metadata).length > 0 && (
               <div className="sm:col-span-2">
                 <p className="text-brand-500">{tr('approvals.metadata')}</p>
-                <pre className="text-xs text-brand-700 bg-white p-2 rounded overflow-auto">{JSON.stringify(request.metadata, null, 2)}</pre>
+                <pre className="text-xs text-brand-700 bg-white p-2 rounded overflow-auto">
+                  {JSON.stringify(request.metadata, null, 2)}
+                </pre>
               </div>
             )}
           </div>
@@ -607,8 +704,15 @@ function RequestReviewModal({ open, onClose, request, decision, onDecisionChange
         </FormSection>
 
         <FormActions>
-          <Button type="button" variant="secondary" onClick={onClose}>{tr('common.cancel')}</Button>
-          <Button type="submit" variant={decision.decision === 'approved' ? 'primary' : 'danger'} loading={submitting} loadingLabel={tr('common.saving')}>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {tr('common.cancel')}
+          </Button>
+          <Button
+            type="submit"
+            variant={decision.decision === 'approved' ? 'primary' : 'danger'}
+            loading={submitting}
+            loadingLabel={tr('common.saving')}
+          >
             {decision.decision === 'approved' ? tr('approvals.approve') : tr('approvals.reject')}
           </Button>
         </FormActions>

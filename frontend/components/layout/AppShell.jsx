@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
@@ -11,6 +11,28 @@ import { initials } from '@/lib/i18n';
 import { Icon, Button, Modal, Input } from '@/components/ui/common';
 import Sidebar from './SidebarV2';
 import GlobalSearch from './GlobalSearch';
+
+let approvalsCache = { userId: null, total: 0, promise: null };
+const approvalsListeners = new Set();
+
+function emitApprovalsChange() {
+  approvalsListeners.forEach((listener) => listener());
+}
+
+export function subscribeApprovals(listener) {
+  approvalsListeners.add(listener);
+  return () => approvalsListeners.delete(listener);
+}
+
+export function getApprovalsTotal() {
+  return approvalsCache.total;
+}
+
+export function decrementApprovalsTotal() {
+  if (approvalsCache.total <= 0) return;
+  approvalsCache = { ...approvalsCache, total: approvalsCache.total - 1 };
+  emitApprovalsChange();
+}
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
@@ -26,7 +48,11 @@ export default function AppShell({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
-  const [pendingApprovals, setPendingApprovals] = useState(0);
+  const pendingApprovals = useSyncExternalStore(
+    subscribeApprovals,
+    getApprovalsTotal,
+    () => 0,
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const menuRef = useRef(null);
 
@@ -61,31 +87,43 @@ export default function AppShell({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role === 'member') return undefined;
+    const { user: currentUser, isAuthenticated: authed } = useAuthStore.getState();
+    const userId = currentUser?._id;
 
-    let cancelled = false;
-    const loadCount = async () => {
-      try {
-        const [slips, requests] = await Promise.all([
-          apiClient.get('/approvals/slips', { status: 'pending', limit: 1 }),
-          apiClient.get('/approvals', { status: 'pending', limit: 1 }),
-        ]);
-        if (!cancelled) {
-          setPendingApprovals(
-            (slips.data?.data?.meta?.total || 0) + (requests.data?.data?.meta?.total || 0),
-          );
-        }
-      } catch {
-        // Best effort
+    if (!userId) {
+      if (approvalsCache.userId !== null || approvalsCache.total !== 0) {
+        approvalsCache = { userId: null, total: 0, promise: null };
+        emitApprovalsChange();
       }
-    };
-    loadCount();
-    const timer = setInterval(loadCount, 60000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [isAuthenticated, user?.role]);
+      return undefined;
+    }
+
+    if (!authed || currentUser.role === 'member') return undefined;
+
+    if (approvalsCache.userId !== userId) {
+      approvalsCache = { userId, total: 0, promise: null };
+      approvalsCache.promise = (async () => {
+        try {
+          const [slips, requests] = await Promise.all([
+            apiClient.get('/approvals/slips', { status: 'pending', limit: 1 }),
+            apiClient.get('/approvals', { status: 'pending', limit: 1 }),
+          ]);
+          const totalSlips = slips.data?.data?.meta?.total || slips.data?.meta?.total || 0;
+          const totalReqs = requests.data?.data?.meta?.total || requests.data?.meta?.total || 0;
+          return totalSlips + totalReqs;
+        } catch {
+          return 0;
+        }
+      })();
+      approvalsCache.promise.then((total) => {
+        if (approvalsCache.userId !== userId) return;
+        approvalsCache = { ...approvalsCache, total };
+        emitApprovalsChange();
+      });
+    }
+
+    return undefined;
+  }, [user?._id]);
 
   const displayName = lang === 'bn' && user?.nameBn ? user.nameBn : user?.name;
 
@@ -114,11 +152,11 @@ export default function AppShell({ children }) {
 
       <div className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
         
-        {/* Clean Modern Navbar */}
+        {/* Navbar */}
         <header className="sticky top-0 z-30 w-full border-b border-[#E8D3A7]/60 bg-white/90 backdrop-blur-md shadow-xs">
           <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             
-            {/* Left: Mobile Toggle */}
+            {/* Mobile Toggle */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -130,15 +168,15 @@ export default function AppShell({ children }) {
               </button>
             </div>
 
-            {/* Middle: Clean Global Search Bar */}
+            {/* Global Search */}
             <div className="flex-1 max-w-md mx-2">
               <GlobalSearch className="w-full" />
             </div>
 
-            {/* Right: Notification Bell & Profile Avatar */}
+            {/* Actions & Profile */}
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               
-              {/* Notification Bell Icon */}
+              {/* Notification Bell */}
               <Link
                 href="/notifications"
                 className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[#6B1D2F] hover:bg-[#F7EEDD] transition-colors"
@@ -152,7 +190,7 @@ export default function AppShell({ children }) {
                 )}
               </Link>
 
-              {/* Avatar Only Trigger */}
+              {/* User Dropdown */}
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"
@@ -167,7 +205,6 @@ export default function AppShell({ children }) {
                   </div>
                 </button>
 
-                {/* Dropdown Popup Menu */}
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full z-40 mt-2.5 w-64 origin-top-right overflow-hidden rounded-2xl border border-[#E8D3A7] bg-white p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-100" role="menu">
                     
@@ -185,7 +222,7 @@ export default function AppShell({ children }) {
                       </div>
                     </div>
 
-                    {/* Unique Language Switcher Tile */}
+                    {/* Language Switcher */}
                     <div className="mb-2 rounded-xl bg-gradient-to-r from-[#FDFBF7] to-[#F7EEDD]/60 p-2 border border-[#E8D3A7]/40">
                       <div className="flex items-center justify-between pb-1.5 px-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B1D2F]/70">
@@ -246,7 +283,7 @@ export default function AppShell({ children }) {
                       </button>
                     </div>
 
-                    {/* Logout Option */}
+                    {/* Logout */}
                     <div className="border-t border-stone-100 pt-1 mt-1">
                       <button
                         type="button"
@@ -272,7 +309,7 @@ export default function AppShell({ children }) {
           {children}
         </main>
 
-        {/* Modern Footer */}
+        {/* Footer */}
         <footer className="mt-auto flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#E8D3A7]/60 bg-white/50 px-4 py-4 text-[11px] font-medium text-stone-500 sm:px-6 lg:px-8">
           <span>{tr('login.footer', { year: new Date().getFullYear() })}</span>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-emerald-700">
