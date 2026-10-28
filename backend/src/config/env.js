@@ -51,18 +51,19 @@ function detectEnvironment() {
     }
   }
 
-  // 3. Check for production-like hostnames/ports (not localhost)
-  const host = process.env.HOST || process.env.HOSTNAME || '';
-  const port = process.env.PORT || '4000';
-  const isLocalHost = ['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(host) || host === '';
-  const isLocalPort = ['3000', '4000', '5173', '8080', '8000'].includes(port);
-
-  // 4. Check for common CI/CD indicators
+  // 3. CI/CD indicators
   const ciIndicators = ['CI', 'CONTINUOUS_INTEGRATION', 'GITHUB_ACTIONS', 'GITLAB_CI', 'BUILDKITE', 'CIRCLECI', 'TRAVIS'];
   const isCI = ciIndicators.some((key) => process.env[key]);
+  if (isCI) {
+    return { isLocal: false, isProduction: true, source: 'detected CI environment' };
+  }
 
-  if (!isLocalHost || !isLocalPort || isCI) {
-    return { isLocal: false, isProduction: true, source: `non-local host/port/CI (host=${host}, port=${port}, CI=${isCI})` };
+  // 4. Check explicit non-local HOST override (excluding system HOSTNAME/COMPUTERNAME)
+  const explicitHost = process.env.HOST || '';
+  const isLocalHost = ['localhost', '127.0.0.1', '::1', '0.0.0.0', ''].includes(explicitHost.toLowerCase());
+
+  if (!isLocalHost) {
+    return { isLocal: false, isProduction: true, source: `non-local HOST override (${explicitHost})` };
   }
 
   // 5. Default: local development
