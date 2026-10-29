@@ -324,6 +324,23 @@ const en = {
   'approvals.approveSuccess': 'Approved successfully.',
   'approvals.rejectSuccess': 'Rejected successfully.',
   'approvals.review': 'Review',
+  'approvals.kycProfiles': 'KYC Profiles',
+  'approvals.email': 'Email',
+  'approvals.phone': 'Phone',
+  'approvals.submittedAt': 'Submitted At',
+  'approvals.status': 'Status',
+  'approvals.reviewKyc': 'Review KYC Profile',
+  'approvals.nid': 'National ID',
+  'approvals.dob': 'Date of Birth',
+  'approvals.fatherName': "Father's Name",
+  'approvals.motherName': "Mother's Name",
+  'approvals.spouseName': 'Spouse Name',
+  'approvals.occupation': 'Occupation',
+  'approvals.address': 'Address',
+  'approvals.nominee': 'Nominee',
+  'approvals.shareCount': 'Share Count',
+  'approvals.notes': 'Notes',
+  'approvals.noKyc': 'No KYC submissions found.',
 
   'expenses.title': 'Expenses',
   'expenses.subtitle': '3-tier approval workflow for all expenditures',
@@ -904,12 +921,15 @@ const en = {
 
   // Notifications
   'notifications.title': 'Notifications',
+  'notifications.subtitle': 'Your recent activity and alerts',
   'notifications.dueAlert': 'Due Payment Alert',
   'notifications.approvalAlert': 'Approval Alert',
   'notifications.noticeAlert': 'Notice Alert',
   'notifications.meetingAlert': 'Meeting Alert',
   'notifications.markRead': 'Mark as Read',
   'notifications.markAllRead': 'Mark All as Read',
+  'notifications.noNotifications': 'No notifications yet',
+  'notifications.emptyDesc': 'We will notify you when there is something new.',
 
   // Admin specific
   'admin.memberList': 'Member List',
@@ -1787,12 +1807,15 @@ const bn = {
 
   // Notifications
   'notifications.title': 'বিজ্ঞপ্তি',
+  'notifications.subtitle': 'আপনার সাম্প্রতিক কার্যক্রম এবং সতর্কতা',
   'notifications.dueAlert': 'বকেয়া পরিশোধ সতর্কতা',
   'notifications.approvalAlert': 'অনুমোদন সতর্কতা',
   'notifications.noticeAlert': 'নোটিশ সতর্কতা',
   'notifications.meetingAlert': 'সভার সতর্কতা',
   'notifications.markRead': 'পঠিত চিহ্নিত করুন',
   'notifications.markAllRead': 'সবকে পঠিত চিহ্নিত করুন',
+  'notifications.noNotifications': 'কোনো বিজ্ঞপ্তি নেই',
+  'notifications.emptyDesc': 'নতুন কিছু থাকলে আমরা আপনাকে জানাব।',
 
   // Admin specific
   'admin.memberList': 'সদস্য তালিকা',
@@ -1842,6 +1865,23 @@ const bn = {
   'admin.branding': 'ব্র্যান্ডিং',
   'admin.paymentGatewayKeys': 'পেমেন্ট গেটওয়ে কী',
   'admin.securitySettings': 'নিরাপত্তা সেটিংস',
+  'approvals.kycProfiles': 'KYC প্রোফাইল',
+  'approvals.email': 'ইমেইল',
+  'approvals.phone': 'ফোন',
+  'approvals.submittedAt': 'জমাদানের তারিখ',
+  'approvals.status': 'অবস্থা',
+  'approvals.reviewKyc': 'KYC প্রোফাইল পর্যালোচনা',
+  'approvals.nid': 'জাতীয় পরিচয়পত্র',
+  'approvals.dob': 'জন্ম তারিখ',
+  'approvals.fatherName': 'পিতার নাম',
+  'approvals.motherName': 'মাতার নাম',
+  'approvals.spouseName': 'স্বামী/স্ত্রীর নাম',
+  'approvals.occupation': 'পেশা',
+  'approvals.address': 'ঠিকানা',
+  'approvals.nominee': 'মনোনীত ব্যক্তি',
+  'approvals.shareCount': 'শেয়ার সংখ্যা',
+  'approvals.notes': 'নোট',
+  'approvals.noKyc': 'কোনো KYC আবেদন পাওয়া যায়নি।',
 };
 
 const dictionaries = { en, bn };
