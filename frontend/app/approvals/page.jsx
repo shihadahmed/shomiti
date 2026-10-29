@@ -55,20 +55,26 @@ export default function ApprovalsPage() {
 
   const [mounted, setMounted] = useState(false);
   const [checking, setChecking] = useState(true);
-  const [activeTab, setActiveTab] = useState('slips'); // 'slips' or 'requests'
+  const [activeTab, setActiveTab] = useState('slips'); // 'slips', 'requests', or 'kyc'
   const [slipPage, setSlipPage] = useState(1);
   const [requestPage, setRequestPage] = useState(1);
+  const [kycPage, setKycPage] = useState(1);
   const [slipSearch, setSlipSearch] = useState('');
   const [slipStatusFilter, setSlipStatusFilter] = useState('');
   const [slipMethodFilter, setSlipMethodFilter] = useState('');
   const [requestSearch, setRequestSearch] = useState('');
   const [requestStatusFilter, setRequestStatusFilter] = useState('');
+  const [kycSearch, setKycSearch] = useState('');
+  const [kycStatusFilter, setKycStatusFilter] = useState('');
   const [showSlipModal, setShowSlipModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showKycModal, setShowKycModal] = useState(false);
   const [reviewingSlip, setReviewingSlip] = useState(null);
   const [reviewingRequest, setReviewingRequest] = useState(null);
+  const [reviewingKyc, setReviewingKyc] = useState(null);
   const [slipDecision, setSlipDecision] = useState({ approved: true, reason: '' });
   const [requestDecision, setRequestDecision] = useState({ decision: 'approved', note: '' });
+  const [kycDecision, setKycDecision] = useState({ decision: 'approved', reason: '' });
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   // useMemo prevents new object references on every render cycle
@@ -93,6 +99,16 @@ export default function ApprovalsPage() {
     [requestPage, requestSearch, requestStatusFilter]
   );
 
+  const kycParams = useMemo(
+    () => ({
+      page: kycPage,
+      limit: 15,
+      search: kycSearch || undefined,
+      status: kycStatusFilter || undefined,
+    }),
+    [kycPage, kycSearch, kycStatusFilter]
+  );
+
   const {
     data: slipData,
     loading: slipLoading,
@@ -109,6 +125,15 @@ export default function ApprovalsPage() {
     reload: reloadRequests,
   } = useApi('/approvals', requestParams, {
     enabled: Boolean(isAuthenticated && activeTab === 'requests'),
+  });
+
+  const {
+    data: kycData,
+    loading: kycLoading,
+    error: kycError,
+    reload: reloadKyc,
+  } = useApi('/auth/users/kyc-pending', kycParams, {
+    enabled: Boolean(isAuthenticated && activeTab === 'kyc'),
   });
 
   useEffect(() => {
@@ -168,6 +193,39 @@ export default function ApprovalsPage() {
     setShowRequestModal(false);
     setReviewingRequest(null);
     setRequestDecision({ decision: 'approved', note: '' });
+  };
+
+  const openKycReview = (user) => {
+    setReviewingKyc(user);
+    setKycDecision({ decision: 'approved', reason: '' });
+    setShowKycModal(true);
+  };
+
+  const closeKycModal = () => {
+    setShowKycModal(false);
+    setReviewingKyc(null);
+    setKycDecision({ decision: 'approved', reason: '' });
+  };
+
+  const handleKycDecision = async (e) => {
+    e.preventDefault();
+    if (!reviewingKyc) return;
+
+    if (kycDecision.decision === 'rejected' && !kycDecision.reason.trim()) {
+      alert(tr('approvals.rejectionReasonRequired'));
+      return;
+    }
+
+    setReviewSubmitting(true);
+    try {
+      await apiPost(`/auth/users/${reviewingKyc._id}/kyc-decision`, kycDecision);
+      closeKycModal();
+      reloadKyc?.();
+    } catch (requestError) {
+      alert(requestError?.message || tr('error.generic'));
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   const handleSlipDecision = async (e) => {
@@ -255,26 +313,44 @@ export default function ApprovalsPage() {
               {slipMeta.total || 0}
             </span>
           </button>
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${
-              activeTab === 'requests'
-                ? 'bg-brand-700 text-white'
-                : 'text-brand-700 hover:bg-brand-100'
-            }`}
-            onClick={() => setActiveTab('requests')}
-          >
-            {tr('approvals.approvalRequests')}{' '}
-            <span
-              className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${
-                activeTab === 'requests' ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700'
-              }`}
-            >
-              {requestMeta.total || 0}
-            </span>
-          </button>
-        </nav>
-      </div>
+           <button
+             type="button"
+             className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${
+               activeTab === 'requests'
+                 ? 'bg-brand-700 text-white'
+                 : 'text-brand-700 hover:bg-brand-100'
+             }`}
+             onClick={() => setActiveTab('requests')}
+           >
+             {tr('approvals.approvalRequests')}{' '}
+             <span
+               className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${
+                 activeTab === 'requests' ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700'
+               }`}
+             >
+               {requestMeta.total || 0}
+             </span>
+           </button>
+           <button
+             type="button"
+             className={`px-4 py-2 text-sm font-medium rounded-t-xl transition ${
+               activeTab === 'kyc'
+                 ? 'bg-brand-700 text-white'
+                 : 'text-brand-700 hover:bg-brand-100'
+             }`}
+             onClick={() => setActiveTab('kyc')}
+           >
+             {tr('approvals.kycProfiles')}{' '}
+             <span
+               className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${
+                 activeTab === 'kyc' ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700'
+               }`}
+             >
+               {kycData?.meta?.total || 0}
+             </span>
+           </button>
+         </nav>
+       </div>
 
       {activeTab === 'slips' && (
         <>
@@ -466,6 +542,90 @@ export default function ApprovalsPage() {
         </>
       )}
 
+      {activeTab === 'kyc' && (
+        <>
+          <form onSubmit={(e) => { e.preventDefault(); setKycPage(1); reloadKyc?.(); }} className="mb-6">
+            <FilterBar>
+              <SearchInput
+                value={kycSearch}
+                onChange={(e) => setKycSearch(e.target.value)}
+                placeholder={tr('savings.searchPlaceholder')}
+                className="flex-1 min-w-[280px] max-w-md"
+              />
+              <Select
+                value={kycStatusFilter}
+                onChange={(e) => setKycStatusFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All' },
+                  { value: 'under_review', label: 'Under Review' },
+                  { value: 'rejected', label: 'Rejected' },
+                ]}
+                className="w-[180px]"
+              />
+            </FilterBar>
+          </form>
+
+          <div className="card">
+            {kycLoading ? (
+              <div className="p-8 text-center">
+                <LoadingSpinner size="md" />
+              </div>
+            ) : kycError ? (
+              <EmptyState icon="alert" title={tr('common.error')} description={kycError} className="p-8" />
+            ) : kycData?.items?.length === 0 ? (
+              <EmptyState icon="user" title={tr('approvals.noKyc')} description={tr('common.noData')} className="p-12" />
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-brand-200 text-sm">
+                    <thead className="bg-brand-50/80">
+                      <tr>
+                        <th className="th">{tr('members.name')}</th>
+                        <th className="th">{tr('approvals.email')}</th>
+                        <th className="th">{tr('approvals.phone')}</th>
+                        <th className="th">{tr('approvals.submittedAt')}</th>
+                        <th className="th">{tr('approvals.status')}</th>
+                        <th className="th">{tr('members.actions')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-brand-200">
+                      {kycData.items.map((user) => (
+                        <tr key={user._id} className="tr-hover">
+                          <td className="td font-medium text-brand-900">
+                            {lang === 'bn' && user.profileData?.fullNameBn
+                              ? user.profileData.fullNameBn
+                              : user.name || user.profileData?.fullName || '-'}
+                            <br />
+                            <span className="text-xs text-brand-500 font-mono">{user.email}</span>
+                          </td>
+                          <td className="td text-brand-700">{user.email || '-'}</td>
+                          <td className="td text-brand-700">{user.phone || '-'}</td>
+                          <td className="td text-brand-700">{user.kycSubmittedAt ? formatDate(user.kycSubmittedAt) : '-'}</td>
+                          <td className="td">
+                            <StatusBadge status={user.status} />
+                          </td>
+                          <td className="td">
+                            <button
+                              type="button"
+                              className="btn-primary text-xs px-3 py-1.5"
+                              onClick={() => openKycReview(user)}
+                              aria-label={tr('approvals.review')}
+                            >
+                              {tr('approvals.review')}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination meta={kycData?.meta} onPage={setKycPage} />
+              </>
+            )}
+          </div>
+        </>
+      )}
+
       <SlipReviewModal
         open={showSlipModal}
         onClose={closeSlipModal}
@@ -484,6 +644,16 @@ export default function ApprovalsPage() {
         onDecisionChange={setRequestDecision}
         submitting={reviewSubmitting}
         onSubmit={handleRequestDecision}
+      />
+
+      <KycReviewModal
+        open={showKycModal}
+        onClose={closeKycModal}
+        user={reviewingKyc}
+        decision={kycDecision}
+        onDecisionChange={setKycDecision}
+        submitting={reviewSubmitting}
+        onSubmit={handleKycDecision}
       />
     </AppShell>
   );
@@ -606,6 +776,137 @@ function SlipReviewModal({ open, onClose, slip, decision, onDecisionChange, subm
             loadingLabel={tr('common.saving')}
           >
             {decision.approved ? tr('approvals.approve') : tr('approvals.reject')}
+          </Button>
+        </FormActions>
+      </form>
+    </Modal>
+  );
+}
+
+function KycReviewModal({ open, onClose, user, decision, onDecisionChange, submitting, onSubmit }) {
+  const { tr, formatDate } = useLang();
+
+  if (!open || !user) return null;
+
+  const profile = user.profileData || {};
+
+  return (
+    <Modal isOpen={open} onClose={onClose} title={tr('approvals.reviewKyc')} size="lg">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="rounded-xl border border-brand-200 bg-brand-50 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2">
+              <p className="text-brand-500">{tr('members.name')}</p>
+              <p className="font-semibold text-brand-900">{profile.fullName || user.name || '-'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.email')}</p>
+              <p className="font-semibold text-brand-900">{profile.email || user.email || '-'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.phone')}</p>
+              <p className="font-semibold text-brand-900">{profile.phone || user.phone || '-'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.nid')}</p>
+              <p className="font-mono font-semibold text-brand-900">{profile.nid || '-'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.dob')}</p>
+              <p className="font-semibold text-brand-900">{profile.dateOfBirth ? formatDate(profile.dateOfBirth) : '-'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.fatherName')}</p>
+              <p className="font-semibold text-brand-900">{profile.fatherName || '-'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.motherName')}</p>
+              <p className="font-semibold text-brand-900">{profile.motherName || '-'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.spouseName')}</p>
+              <p className="font-semibold text-brand-900">{profile.spouseName || '-'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.occupation')}</p>
+              <p className="font-semibold text-brand-900">{profile.occupation || '-'}</p>
+            </div>
+            <div className="sm:col-span-2 border-t border-brand-200 pt-2 mt-2">
+              <p className="text-brand-500 font-medium mb-1">{tr('approvals.address')}</p>
+              <p className="text-brand-900">
+                {`${profile.village || ''}, ${profile.postOffice || ''}, ${profile.upazila || ''}, ${profile.district || ''}`.replace(/^, |, $/g, '').replace(/, ,/g, ',')}
+              </p>
+            </div>
+            <div className="sm:col-span-2 border-t border-brand-200 pt-2 mt-2">
+              <p className="text-brand-500 font-medium mb-1">{tr('approvals.nominee')}</p>
+              <p className="text-brand-900">
+                {profile.nomineeName} {profile.nomineeRelation ? `(${profile.nomineeRelation})` : ''}
+                {profile.nomineePhone ? ` - ${profile.nomineePhone}` : ''}
+              </p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.shareCount')}</p>
+              <p className="font-semibold text-brand-900">{profile.shareCount || '0'}</p>
+            </div>
+            <div>
+              <p className="text-brand-500">{tr('approvals.submittedAt')}</p>
+              <p className="font-semibold text-brand-900">{user.kycSubmittedAt ? formatDate(user.kycSubmittedAt) : '-'}</p>
+            </div>
+            {profile.notes && (
+              <div className="sm:col-span-2">
+                <p className="text-brand-500">{tr('approvals.notes')}</p>
+                <p className="text-brand-900 italic">"{profile.notes}"</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <FormSection title={tr('approvals.decision')}>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="kyc-decision"
+                value="approved"
+                checked={decision.decision === 'approved'}
+                onChange={(e) => onDecisionChange({ ...decision, decision: e.target.value })}
+                className="h-4 w-4 text-brand-700"
+              />
+              <span className="font-medium text-brand-900">{tr('approvals.approve')}</span>
+            </label>
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="kyc-decision"
+                value="rejected"
+                checked={decision.decision === 'rejected'}
+                onChange={(e) => onDecisionChange({ ...decision, decision: e.target.value })}
+                className="h-4 w-4 text-red-600"
+              />
+              <span className="font-medium text-brand-900">{tr('approvals.reject')}</span>
+            </label>
+          </div>
+          <Input
+            label={decision.decision === 'rejected' ? tr('approvals.rejectionReason') : tr('approvals.note')}
+            value={decision.reason}
+            onChange={(e) => onDecisionChange({ ...decision, reason: e.target.value })}
+            required={decision.decision === 'rejected'}
+            multiline
+            rows={3}
+          />
+        </FormSection>
+
+        <FormActions>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {tr('common.cancel')}
+          </Button>
+          <Button
+            type="submit"
+            variant={decision.decision === 'approved' ? 'primary' : 'danger'}
+            loading={submitting}
+            loadingLabel={tr('common.saving')}
+          >
+            {decision.decision === 'approved' ? tr('approvals.approve') : tr('approvals.reject')}
           </Button>
         </FormActions>
       </form>
