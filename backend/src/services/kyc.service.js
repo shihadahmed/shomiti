@@ -7,7 +7,7 @@ import {
   KYC_BLOCKED_STATUSES,
   NOTIFICATION_TYPE,
 } from '../config/constants.js';
-import emailService from './email.service.js';
+import * as emailService from './email.service.js';
 import { getPagination, paginationMeta } from '../utils/pagination.js';
 
 const KYC_FIELDS = [
