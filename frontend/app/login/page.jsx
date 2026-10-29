@@ -22,6 +22,9 @@ export default function LoginPage() {
   const error = useAuthStore((state) => state.error);
   const clearError = useAuthStore((state) => state.clearError);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+
+  const KYC_BLOCKED_STATUSES = ['pending_kyc', 'under_review', 'rejected'];
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -39,15 +42,26 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) router.replace(nextUrl);
-  }, [isAuthenticated, nextUrl, router]);
+    if (isAuthenticated && user) {
+      const target = KYC_BLOCKED_STATUSES.includes(user.status)
+        ? '/complete-profile'
+        : nextUrl;
+      router.replace(target);
+    }
+  }, [isAuthenticated, user, nextUrl, router]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (isLoading) return;
     clearError();
     const success = await login(identifier.trim(), password);
-    if (success) router.replace(nextUrl);
+    if (success) {
+      const loggedInUser = useAuthStore.getState().user;
+      const target = KYC_BLOCKED_STATUSES.includes(loggedInUser?.status || '')
+        ? '/complete-profile'
+        : nextUrl;
+      router.replace(target);
+    }
   };
 
   const updateIdentifier = (event) => {

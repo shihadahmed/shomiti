@@ -49,6 +49,8 @@ import {
   Settings,
   Info,
   LoaderCircle,
+  Id,
+  Briefcase,
 } from 'lucide-react';
 
 const ICONS = {
@@ -63,7 +65,7 @@ const ICONS = {
   eye: Eye, banknote: Banknote, trendingUp: TrendingUp, clock: Clock,
   filter: Funnel, xCircle: CircleX, camera: Camera, check: Check,
   lock: Lock, user: User, creditCard: CreditCard, award: Star,
-  bell: Bell, settings: Settings, info: Info,
+  bell: Bell, settings: Settings, info: Info, id: Id, briefcase: Briefcase,
 };
 
 const BOLD_ICONS = new Set([

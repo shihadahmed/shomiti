@@ -34,6 +34,29 @@ export function decrementApprovalsTotal() {
   emitApprovalsChange();
 }
 
+let notificationsCache = { userId: null, total: 0, promise: null };
+const notificationsListeners = new Set();
+
+function emitNotificationsChange() {
+  notificationsListeners.forEach((listener) => listener());
+}
+
+export function subscribeNotifications(listener) {
+  notificationsListeners.add(listener);
+  return () => notificationsListeners.delete(listener);
+}
+
+export function getNotificationsTotal() {
+  return notificationsCache.total;
+}
+
+export function incrementNotificationsTotal() {
+  notificationsCache = { ...notificationsCache, total: notificationsCache.total + 1 };
+  emitNotificationsChange();
+}
+
+export const KYC_BLOCKED_STATUSES = ['pending_kyc', 'under_review', 'rejected'];
+
 export default function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -51,6 +74,11 @@ export default function AppShell({ children }) {
   const pendingApprovals = useSyncExternalStore(
     subscribeApprovals,
     getApprovalsTotal,
+    () => 0,
+  );
+  const unreadNotifications = useSyncExternalStore(
+    subscribeNotifications,
+    getNotificationsTotal,
     () => 0,
   );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -125,7 +153,42 @@ export default function AppShell({ children }) {
     return undefined;
   }, [user?._id]);
 
-  const displayName = lang === 'bn' && user?.nameBn ? user.nameBn : user?.name;
+  useEffect(() => {
+    const { user: currentUser, isAuthenticated: authed } = useAuthStore.getState();
+    const userId = currentUser?._id;
+
+    if (!userId) {
+      if (notificationsCache.userId !== null || notificationsCache.total !== 0) {
+        notificationsCache = { userId: null, total: 0, promise: null };
+        emitNotificationsChange();
+      }
+      return undefined;
+    }
+
+    if (!authed) return undefined;
+
+    if (notificationsCache.userId !== userId) {
+      notificationsCache = { userId, total: 0, promise: null };
+      notificationsCache.promise = (async () => {
+        try {
+          const response = await apiClient.get('/notifications/unread-count');
+          return response.data?.data?.unreadTotal || 0;
+        } catch {
+          return 0;
+        }
+      })();
+      notificationsCache.promise.then((total) => {
+        if (notificationsCache.userId !== userId) return;
+        notificationsCache = { ...notificationsCache, total };
+        emitNotificationsChange();
+      });
+    }
+
+    return undefined;
+  }, [user?._id]);
+
+  const KYC_BLOCKED = KYC_BLOCKED_STATUSES.includes(user?.status || '');
+  const isCompleteProfile = pathname === '/complete-profile';
 
   if (checking) {
     return (
@@ -139,6 +202,21 @@ export default function AppShell({ children }) {
   }
 
   if (!isAuthenticated || !user) return null;
+
+  /* ── KYC route guard ──
+   * pending_kyc / under_review / rejected users may only reach /complete-profile.
+   * Every other app route is replaced by the KYC block screen. */
+  if (KYC_BLOCKED && !isCompleteProfile) {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] text-[#2D151B]">
+        <main className="w-full flex-1 flex items-center justify-center px-4">
+          <KycBlockScreen user={user} />
+        </main>
+      </div>
+    );
+  }
+
+  const displayName = lang === 'bn' && user?.nameBn ? user.nameBn : user?.name;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2D151B]">
@@ -183,9 +261,9 @@ export default function AppShell({ children }) {
                 aria-label={tr('settings.notifications')}
               >
                 <Icon name="bell" className="h-5 w-5" />
-                {pendingApprovals > 0 && (
+                {unreadNotifications > 0 && (
                   <span className="absolute top-1.5 right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-                    {pendingApprovals > 99 ? '99+' : pendingApprovals}
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
                   </span>
                 )}
               </Link>
@@ -410,5 +488,50 @@ function ChangePasswordModal({ open, onClose, onChanged }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+function KycBlockScreen({ user }) {
+  const { tr } = useLang();
+
+  const statusTitle = () => {
+    if (user.status === 'under_review') return tr('kyc.underReviewTitle');
+    if (user.status === 'rejected') return tr('kyc.rejectedTitle');
+    return tr('kyc.pendingKycTitle');
+  };
+
+  const statusBody = () => {
+    if (user.status === 'under_review') return tr('kyc.underReviewBody');
+    if (user.status === 'rejected') return tr('kyc.rejectedBody');
+    return tr('kyc.pendingKycBody');
+  };
+
+  return (
+    <div className="card card-pad text-center max-w-md mx-auto py-16">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 font-bold text-xl mx-auto mb-4">
+        <Icon name="clock" className="h-6 w-6" />
+      </div>
+      <h3 className="text-lg font-semibold text-brand-900">{statusTitle()}</h3>
+      <p className="mt-3 text-brand-500">{statusBody()}</p>
+      {user.status === 'rejected' && user.rejectionReason && (
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-left">
+          <p className="text-sm font-semibold text-red-800">{tr('kyc.rejectionReasonLabel')}</p>
+          <p className="mt-1 text-sm text-red-700">{user.rejectionReason}</p>
+        </div>
+      )}
+      <div className="mt-8">
+        <Button
+          type="button"
+          variant="primary"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            // eslint-disable-next-line no-restricted-globals
+            window.location.href = '/complete-profile';
+          }}
+        >
+          {tr('kyc.goToProfile')}
+        </Button>
+      </div>
+    </div>
   );
 }
