@@ -33,6 +33,34 @@ export const MEMBER_STATUS = Object.freeze({
 
 export const MEMBER_STATUS_VALUES = Object.freeze(Object.values(MEMBER_STATUS));
 
+/** User account lifecycle status (onboarding / KYC / approval). */
+export const USER_STATUS = Object.freeze({
+  INVITED: 'invited',
+  PENDING_KYC: 'pending_kyc',
+  UNDER_REVIEW: 'under_review',
+  ACTIVE: 'active',
+  REJECTED: 'rejected',
+});
+
+export const USER_STATUS_VALUES = Object.freeze(Object.values(USER_STATUS));
+
+/** Statuses that block access to the app until the profile is cleared. */
+export const KYC_BLOCKED_STATUSES = Object.freeze([
+  USER_STATUS.PENDING_KYC,
+  USER_STATUS.UNDER_REVIEW,
+  USER_STATUS.REJECTED,
+]);
+
+/** In-app notification types (bell icon). */
+export const NOTIFICATION_TYPE = Object.freeze({
+  PROFILE_SUBMITTED: 'profile_submitted',
+  ACCOUNT_APPROVED: 'account_approved',
+  ACCOUNT_REJECTED: 'account_rejected',
+  SYSTEM: 'system',
+});
+
+export const NOTIFICATION_TYPE_VALUES = Object.freeze(Object.values(NOTIFICATION_TYPE));
+
 export const SAVINGS_TYPES = Object.freeze({
   MONTHLY: 'monthly',
   HALF_YEARLY: 'half_yearly',
@@ -307,6 +335,13 @@ export const PERMISSION_CATEGORIES = Object.freeze([
       { key: 'roles.assign', label: { en: 'Assign Role', bn: 'রোল অ্যাসাইন' }, description: { en: 'Assign/change roles for users', bn: 'ব্যবহারকারীদের জন্য রোল বাদল/নিযুক্ত করুন' } },
     ],
   },
+  {
+    key: 'users',
+    label: { en: 'User Accounts', bn: 'ব্যবহারকারী অ্যাকাউন্ট' },
+    permissions: [
+      { key: 'users.manage_kyc', label: { en: 'Manage KYC / Profile Approval', bn: 'KYC / প্রোফাইল অনুমোদন পরিচালনা' }, description: { en: 'Review, approve or reject member profile and KYC submissions', bn: 'সদস্যের প্রোফাইল ও KYC জমাদেলি পর্যালোচনা, অনুমোদন বা প্রত্যাখ্যান করা' } },
+    ],
+  },
 ]);
 
 /** Flattened list of all permission keys */
@@ -341,6 +376,7 @@ export const DEFAULT_SYSTEM_ROLES = Object.freeze([
       'reports.view_financial',
       'reports.export',
       'reports.audit_logs',
+      'users.manage_kyc',
     ],
   },
   {
@@ -363,6 +399,7 @@ export const DEFAULT_SYSTEM_ROLES = Object.freeze([
       'documents.certificates',
       'reports.view_financial',
       'reports.export',
+      'users.manage_kyc',
     ],
   },
   {
@@ -387,6 +424,7 @@ export const DEFAULT_SYSTEM_ROLES = Object.freeze([
       'documents.upload',
       'reports.view_financial',
       'reports.export',
+      'users.manage_kyc',
     ],
   },
   {

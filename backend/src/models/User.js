@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { ROLE_VALUES, ROLES } from '../config/constants.js';
+import { ROLE_VALUES, ROLES, USER_STATUS } from '../config/constants.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -19,6 +19,15 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ROLE_VALUES, default: ROLES.MEMBER, index: true },
     member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', default: null },
     isActive: { type: Boolean, default: true },
+    status: {
+      type: String,
+      enum: Object.values(USER_STATUS),
+      default: USER_STATUS.INVITED,
+      index: true,
+    },
+    rejectionReason: { type: String, default: null, trim: true, maxlength: 1000 },
+    profileData: { type: mongoose.Schema.Types.Mixed, default: null },
+    kycSubmittedAt: { type: Date, default: null },
     mustChangePassword: { type: Boolean, default: false },
     tokenVersion: { type: Number, default: 0, select: false },
     resetPasswordToken: { type: String, select: false, index: true, sparse: true },

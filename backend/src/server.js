@@ -51,6 +51,7 @@ async function seedDefaultData() {
         email: userData.email,
         phone: userData.phone,
         role: userData.role,
+        status: 'active',
         passwordHash: await hashPassword(userData.password),
       });
       console.info(`[seed] ${userData.role} created: ${userData.email}`);
