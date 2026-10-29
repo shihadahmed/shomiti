@@ -4,7 +4,7 @@ import { hashPassword, verifyPassword, generateTemporaryPassword, createSetupTok
 import { signAccessToken } from '../utils/jwt.js';
 import { writeAudit } from '../utils/audit.js';
 import { ROLES, ROLE_VALUES, STAFF_ROLES, EXECUTIVE_ROLES, USER_STATUS } from '../config/constants.js';
-import emailService from './email.service.js';
+import * as emailService from './email.service.js';
 import crypto from 'node:crypto';
 
 const STAFF_CREATABLE_ROLES = [ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT, ROLES.MEMBER];
