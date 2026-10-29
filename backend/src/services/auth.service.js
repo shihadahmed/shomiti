@@ -3,7 +3,7 @@ import ApiError from '../utils/ApiError.js';
 import { hashPassword, verifyPassword, generateTemporaryPassword, createSetupToken } from '../utils/password.js';
 import { signAccessToken } from '../utils/jwt.js';
 import { writeAudit } from '../utils/audit.js';
-import { ROLES, ROLE_VALUES, STAFF_ROLES, EXECUTIVE_ROLES } from '../config/constants.js';
+import { ROLES, ROLE_VALUES, STAFF_ROLES, EXECUTIVE_ROLES, USER_STATUS } from '../config/constants.js';
 import emailService from './email.service.js';
 import crypto from 'node:crypto';
 
@@ -303,6 +303,7 @@ export async function setupPassword(token, newPassword, req) {
       $set: {
         passwordHash: await hashPassword(newPassword),
         passwordChangedAt: new Date(),
+        status: USER_STATUS.PENDING_KYC,
         mustChangePassword: false,
       },
       $inc: { tokenVersion: 1 },

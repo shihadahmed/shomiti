@@ -15,6 +15,8 @@ import {
   listUsersQueryRules,
   idParam,
 } from '../validators/auth.validator.js';
+import { kycSubmitRules, kycDecisionRules } from '../validators/kyc.validator.js';
+import * as kycController from '../controllers/kyc.controller.js';
 import * as authController from '../controllers/auth.controller.js';
 
 const router = Router();
@@ -40,6 +42,40 @@ router.get(
   validate,
   authController.listUsers,
 );
+
+// KYC profile submission (the authenticated member)
+router.get(
+  '/users/me/kyc',
+  authenticate,
+  kycController.getMyKyc,
+);
+router.post(
+  '/users/me/kyc',
+  authenticate,
+  kycSubmitRules,
+  validate,
+  kycController.submitKyc,
+);
+
+// KYC review queue (approvers only)
+router.get(
+  '/users/kyc-pending',
+  authenticate,
+  requirePermission('users.manage_kyc'),
+  listUsersQueryRules,
+  validate,
+  kycController.listPendingKyc,
+);
+router.post(
+  '/users/:id/kyc-decision',
+  authenticate,
+  requirePermission('users.manage_kyc'),
+  idParam,
+  kycDecisionRules,
+  validate,
+  kycController.decideKyc,
+);
+
 router.post(
   '/users',
   authenticate,
