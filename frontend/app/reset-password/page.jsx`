@@ -6,7 +6,7 @@ import { useLang } from '@/lib/useLang';
 import { apiPost } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import { Icon, Input, Button } from '@/components/ui/common';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 function ResetPasswordForm() {
   const router = useRouter();

@@ -10,7 +10,7 @@ Next.js 14 App Router client for the Shopnonir Somobai Somitee cooperative manag
 - Zustand (auth store)
 - Axios (API client)
 - lucide-react icons
-- react-hot-toast notifications
+- react-toastify notifications
 - date-fns formatting
 
 ## Project structure

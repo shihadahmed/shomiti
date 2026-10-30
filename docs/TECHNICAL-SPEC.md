@@ -193,7 +193,7 @@ Client → signed multipart POST → Express `multer` → object storage → `Pa
 | Tables | TanStack Table | 8.x | Sorting/filtering/pagination for ledger & members |
 | Charts | Recharts | 2.x | Dashboard trend, fund positions |
 | Icons | lucide-react | latest | Already in use |
-| Toasts | react-hot-toast | 2.x | Already in use |
+| Toasts | react-toastify | 10.x | Already in use |
 | Dates | date-fns | 3.x | Already in use; `Intl` for display |
 | Testing | Vitest, Testing Library, Playwright | latest | Unit + E2E |
 | Lint/format | ESLint (`next/core-web-vitals`), Prettier, `prettier-plugin-tailwindcss` | latest | Consistency |
