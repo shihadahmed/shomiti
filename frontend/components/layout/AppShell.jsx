@@ -3,7 +3,8 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Toaster, toast } from 'react-hot-toast';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { apiClient } from '@/lib/api';
@@ -403,7 +404,7 @@ export default function AppShell({ children }) {
         onChanged={(nextUser) => setUser(nextUser)}
       />
 
-      <Toaster
+      <ToastContainer
         position="top-right"
         toastOptions={{
           style: {
