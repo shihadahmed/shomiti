@@ -84,6 +84,8 @@ const en = {
   'login.help': 'No account? Contact the cooperative office.',
   'login.badCredentials': 'The mobile number/email or password is incorrect.',
   'login.sessionExpired': 'Your session expired. Please sign in again.',
+  'login.identifierRequired': 'Please enter your username or email.',
+  'login.passwordRequired': 'Please enter your password.',
 
   // Missing nav keys
   'nav.analytics': 'Analytics',
@@ -1066,6 +1068,8 @@ const bn = {
   'login.help': 'অ্যাকাউন্ট নেই? সমিতির অফিসে যোগাযোগ করুন।',
   'login.badCredentials': 'মোবাইল নম্বর/ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।',
   'login.sessionExpired': 'আপনার সেশনের মেয়াদ শেষ হয়েছে। আবার সাইন ইন করুন।',
+  'login.identifierRequired': 'ব্যবহারকারীর নাম বা ইমেইল লিখুন।',
+  'login.passwordRequired': 'পাসওয়ার্ড লিখুন।',
 
   'dashboard.title': 'ড্যাশবোর্ড',
   'dashboard.subtitle': 'সমিতির চলমান সারসংক্ষেপ',
