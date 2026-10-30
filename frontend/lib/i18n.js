@@ -630,6 +630,7 @@ const en = {
   'toast.photoUpdated': 'Photo updated.',
   'toast.passwordChanged': 'Password changed.',
   'toast.loggedOut': 'Signed out.',
+  'toast.loginSuccess': 'Welcome back!',
 
   'error.network': 'Cannot reach the server. Check your connection.',
   'error.generic': 'Something went wrong. Please try again.',
@@ -1532,6 +1533,7 @@ const bn = {
   'toast.photoUpdated': 'ছবি হালনাগাদ হয়েছে।',
   'toast.passwordChanged': 'পাসওয়ার্ড পরিবর্তন হয়েছে।',
   'toast.loggedOut': 'সাইন আউট হয়েছে।',
+  'toast.loginSuccess': 'স্বাগতম! আবার সাইন ইন করেছেন।',
 
   'error.network': 'সার্ভারে সংযোগ করা যাচ্ছে না। ইন্টারনেট সংযোগ দেখুন।',
   'error.generic': 'কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।',

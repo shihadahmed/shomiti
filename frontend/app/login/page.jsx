@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
+import { toast } from 'react-toastify';
 import { Icon, Input, Button } from '@/components/ui/common';
 
 const FEATURES = [
@@ -56,6 +57,7 @@ export default function LoginPage() {
     clearError();
     const success = await login(identifier.trim(), password);
     if (success) {
+      toast.success(tr('toast.loginSuccess'));
       const loggedInUser = useAuthStore.getState().user;
       const target = KYC_BLOCKED_STATUSES.includes(loggedInUser?.status || '')
         ? '/complete-profile'
