@@ -54,15 +54,37 @@ export default function LoginPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (isLoading) return;
+
+    // Validation: check for empty fields
+    const trimmedIdentifier = identifier.trim();
+    if (!trimmedIdentifier) {
+      toast.error(tr('login.identifierRequired') || 'Please enter your username or email');
+      return;
+    }
+    if (!password) {
+      toast.error(tr('login.passwordRequired') || 'Please enter your password');
+      return;
+    }
+
     clearError();
-    const success = await login(identifier.trim(), password);
+    const success = await login(trimmedIdentifier, password);
     if (success) {
       toast.success(tr('toast.loginSuccess'));
-      const loggedInUser = useAuthStore.getState().user;
-      const target = KYC_BLOCKED_STATUSES.includes(loggedInUser?.status || '')
-        ? '/complete-profile'
-        : nextUrl;
-      router.replace(target);
+      // Small delay to ensure toast is visible before redirect
+      setTimeout(() => {
+        const loggedInUser = useAuthStore.getState().user;
+        const target = KYC_BLOCKED_STATUSES.includes(loggedInUser?.status || '')
+          ? '/complete-profile'
+          : nextUrl;
+        router.replace(target);
+      }, 800);
+    } else {
+      // Login failed - error is already set in store and shown inline
+      // Also show as toast for better visibility (especially for network errors)
+      const authError = useAuthStore.getState().error;
+      if (authError) {
+        toast.error(authError);
+      }
     }
   };
 
