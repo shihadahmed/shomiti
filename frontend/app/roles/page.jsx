@@ -12,7 +12,7 @@ import {
   Badge, Table, TableHeader, TableBody, TableRow, TableCell,
   SearchInput, Pagination, Progress
 } from '@/components/ui/common';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 const PERMISSION_CATEGORIES = [
   {

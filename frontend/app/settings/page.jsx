@@ -7,7 +7,7 @@ import { useLang } from '@/lib/useLang';
 import { useApi, apiPost, apiPatch } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import { Icon, Button, Input, Select, PageHeader, EmptyState, LoadingSpinner, formatDate, StatusBadge, Pagination, SearchInput, FilterBar, Modal, Tab, Tabs, Table, TableHeader, TableRow, TableCell, TableBody, Tooltip, Dropdown, DropdownItem } from '@/components/ui/common';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 const ROLE_OPTIONS = [
   { value: 'treasurer', label: 'role.treasurer' },

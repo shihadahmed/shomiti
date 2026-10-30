@@ -12,7 +12,7 @@ import {
   Badge, Table, TableHeader, TableBody, TableRow, TableCell,
   SearchInput, Pagination, StatCard, Dropdown, Avatar, FormatDate
 } from '@/components/ui/common';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 const EXECUTIVE_ROLES = ['super_admin', 'president', 'general_secretary', 'treasurer'];
 

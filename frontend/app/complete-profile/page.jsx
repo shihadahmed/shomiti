@@ -18,7 +18,7 @@ import {
   EmptyState,
 } from '@/components/ui/common';
 import { FormSection, FormActions } from '@/components/ui/form';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 const KYC_BLOCKED_STATUSES = ['pending_kyc', 'under_review', 'rejected'];
 
