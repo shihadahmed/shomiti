@@ -115,6 +115,11 @@ const config = {
     adminPhone: process.env.SEED_ADMIN_PHONE || '01700000000',
     adminPassword: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',
   },
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+  },
 };
 
 if (isProduction) {
