@@ -19,7 +19,7 @@ export async function nextSequence(key, { retries = 3 } = {}) {
       const counter = await Counter.findOneAndUpdate(
         { key },
         { $inc: { seq: 1 } },
-        { new: true },
+        { returnDocument: 'after' },
       );
       if (!counter) throw new Error(`Counter "${key}" could not be incremented`);
       return counter.seq;

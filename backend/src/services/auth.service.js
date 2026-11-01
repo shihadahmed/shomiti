@@ -312,7 +312,7 @@ export async function setupPassword(token, newPassword, req) {
         resetPasswordExpires: '',
       },
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!user) {
