@@ -104,7 +104,7 @@ const config = {
     from: process.env.SMTP_FROM || process.env.MAIL_FROM || 'SHOMITI <no-reply@shomiti.local>',
     inviteTtlHours: int(process.env.INVITE_TOKEN_TTL_HOURS, 24),
   },
-  serveFrontend: bool(process.env.SERVE_FRONTEND, config.isLocal),
+  serveFrontend: bool(process.env.SERVE_FRONTEND, isLocal),
   uploadDir: path.resolve(backendRoot, process.env.UPLOAD_DIR || 'uploads'),
   maxUploadBytes: int(process.env.MAX_UPLOAD_BYTES, 5 * 1024 * 1024),
   approvalThresholdPaisa: int(process.env.APPROVAL_THRESHOLD_TAKA, 10000) * 100,
