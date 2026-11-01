@@ -6,7 +6,7 @@ import ApiError from '../utils/ApiError.js';
 import { getPagination, paginationMeta } from '../utils/pagination.js';
 import { writeAudit } from '../utils/audit.js';
 import cloudinary from '../config/cloudinary.js';
-import { uploadToCloudinary } from '../middleware/upload.js';
+import { uploadToCloudinary, MAX_FILE_SIZE } from '../middleware/upload.js';
 
 function assertObjectId(id, label) {
   if (!mongoose.isValidObjectId(id)) {
@@ -17,12 +17,8 @@ function assertObjectId(id, label) {
 export async function createDocument({ file, body }, actor, req) {
   if (!file) throw ApiError.badRequest('Please choose a file to upload.', 'FILE_REQUIRED');
 
-  // Validate file size (3MB - 5MB)
-  const MIN_FILE_SIZE = 3 * 1024 * 1024;
-  const MAX_FILE_SIZE = 5 * 1024 * 1024;
-  if (file.size < MIN_FILE_SIZE) {
-    throw ApiError.badRequest('File size must be at least 3MB.', 'FILE_TOO_SMALL');
-  }
+  // Size ceiling is enforced by multer (see middleware/upload.js). A minimum
+  // size check here would reject perfectly valid small scans and photos.
   if (file.size > MAX_FILE_SIZE) {
     throw ApiError.badRequest('File size must not exceed 5MB.', 'FILE_TOO_LARGE');
   }

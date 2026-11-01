@@ -14,8 +14,8 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]);
 
-const MIN_FILE_SIZE = 3 * 1024 * 1024; // 3MB
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+/** Single source of truth for the upload size ceiling (client must stay under this). */
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const fileFilter = (_req, file, cb) => {
   if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
