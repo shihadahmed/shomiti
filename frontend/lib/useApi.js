@@ -80,4 +80,9 @@ export async function apiDelete(path) {
   return response.data?.data;
 }
 
+export async function apiUpload(path, formData, config) {
+  const response = await apiClient.upload(path, formData, config);
+  return response.data?.data;
+}
+
 export default useApi;
