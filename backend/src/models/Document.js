@@ -13,10 +13,16 @@ const documentSchema = new mongoose.Schema(
     },
     member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', index: true },
     file: {
-      storedName: { type: String, required: true },
+      // Cloudinary fields
+      url: { type: String, required: true },
+      publicId: { type: String, required: true },
       originalName: { type: String, required: true },
       mimeType: { type: String, required: true },
       size: { type: Number, required: true, min: 1 },
+      resourceType: { type: String, enum: ['image', 'raw'], default: 'raw' },
+      format: String,
+      width: Number,
+      height: Number,
     },
     visibility: { type: String, enum: ['staff', 'member'], default: 'staff' },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

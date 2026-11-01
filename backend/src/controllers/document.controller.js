@@ -32,10 +32,8 @@ export const upload = asyncHandler(async (req, res) => {
 
 export const download = asyncHandler(async (req, res) => {
   const file = await documentService.getDocumentFile(req.params.id);
-  if (req.query.inline === '1' && file.mimeType.startsWith('image/')) {
-    return res.type(file.mimeType).sendFile(file.absolutePath);
-  }
-  return res.download(file.absolutePath, file.originalName);
+  // Redirect to Cloudinary URL for download
+  return res.redirect(file.url);
 });
 
 export const remove = asyncHandler(async (req, res) => {

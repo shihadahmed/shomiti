@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import mongoose from 'mongoose';
 import Document from '../models/Document.js';
 import Member from '../models/Member.js';
@@ -7,6 +5,8 @@ import config from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import { getPagination, paginationMeta } from '../utils/pagination.js';
 import { writeAudit } from '../utils/audit.js';
+import cloudinary from '../config/cloudinary.js';
+import { uploadToCloudinary } from '../middleware/upload.js';
 
 function assertObjectId(id, label) {
   if (!mongoose.isValidObjectId(id)) {
@@ -17,11 +17,29 @@ function assertObjectId(id, label) {
 export async function createDocument({ file, body }, actor, req) {
   if (!file) throw ApiError.badRequest('Please choose a file to upload.', 'FILE_REQUIRED');
 
+  // Validate file size (3MB - 5MB)
+  const MIN_FILE_SIZE = 3 * 1024 * 1024;
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  if (file.size < MIN_FILE_SIZE) {
+    throw ApiError.badRequest('File size must be at least 3MB.', 'FILE_TOO_SMALL');
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    throw ApiError.badRequest('File size must not exceed 5MB.', 'FILE_TOO_LARGE');
+  }
+
   if (body.memberId) {
     assertObjectId(body.memberId, 'member');
     const member = await Member.findById(body.memberId);
     if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
   }
+
+  // Upload to Cloudinary
+  const folder = body.memberId ? `shopnonir/members/${body.memberId}/documents` : 'shopnonir/documents';
+  const uploadResult = await uploadToCloudinary(file.buffer, {
+    originalName: file.originalname,
+    mimeType: file.mimetype,
+    folder,
+  });
 
   const doc = await Document.create({
     title: body.title || file.originalname,
@@ -29,10 +47,15 @@ export async function createDocument({ file, body }, actor, req) {
     category: body.category || 'other',
     member: body.memberId || undefined,
     file: {
-      storedName: file.filename,
+      url: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
+      resourceType: uploadResult.resource_type,
+      format: uploadResult.format,
+      width: uploadResult.width,
+      height: uploadResult.height,
     },
     visibility: body.visibility || 'staff',
     uploadedBy: actor._id,
@@ -81,19 +104,14 @@ export async function getDocumentFile(id) {
   const doc = await Document.findById(id);
   if (!doc) throw ApiError.notFound('Document not found.', 'DOCUMENT_NOT_FOUND');
 
-  const storedName = path.basename(doc.file.storedName);
-  const absolutePath = path.join(config.uploadDir, storedName);
-
-  try {
-    await fs.access(absolutePath);
-  } catch {
-    throw ApiError.notFound('The stored file is missing.', 'FILE_MISSING');
-  }
-
+  // Return Cloudinary URL for direct access
   return {
-    absolutePath,
+    url: doc.file.url,
+    publicId: doc.file.publicId,
     originalName: doc.file.originalName,
     mimeType: doc.file.mimeType,
+    size: doc.file.size,
+    resourceType: doc.file.resourceType,
   };
 }
 
@@ -102,10 +120,17 @@ export async function deleteDocument(id, actor, req) {
   const doc = await Document.findById(id);
   if (!doc) throw ApiError.notFound('Document not found.', 'DOCUMENT_NOT_FOUND');
 
-  await doc.deleteOne();
+  // Delete from Cloudinary
+  try {
+    await cloudinary.uploader.destroy(doc.file.publicId, {
+      resource_type: doc.file.resourceType,
+    });
+  } catch (error) {
+    console.error('[Document Service] Failed to delete from Cloudinary:', error);
+    // Continue with DB deletion even if Cloudinary delete fails
+  }
 
-  const absolutePath = path.join(config.uploadDir, path.basename(doc.file.storedName));
-  await fs.unlink(absolutePath).catch(() => {});
+  await doc.deleteOne();
 
   await writeAudit({
     actor: actor._id,
