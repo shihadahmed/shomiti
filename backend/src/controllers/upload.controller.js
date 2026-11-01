@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import ApiError from '../utils/ApiError.js';
 import { uploadToCloudinary } from '../middleware/upload.js';
+import cloudinary from '../config/cloudinary.js';
 
 /**
  * POST /api/upload
@@ -14,6 +15,11 @@ import { uploadToCloudinary } from '../middleware/upload.js';
 export const uploadFile = asyncHandler(async (req, res) => {
   if (!req.file) {
     throw ApiError.badRequest('No file uploaded.', 'FILE_REQUIRED');
+  }
+
+  // Check if Cloudinary is configured
+  if (!cloudinary.config().cloud_name) {
+    throw ApiError.internal('File upload service not configured. Please contact administrator.', 'UPLOAD_SERVICE_UNAVAILABLE');
   }
 
   const { originalname, mimetype, buffer } = req.file;

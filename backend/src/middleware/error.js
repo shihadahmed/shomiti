@@ -104,7 +104,8 @@ export function errorHandler(error, req, res, _next) {
   };
 
   if (normalised.details) body.error.details = normalised.details;
-  if (!config.isProduction && normalised.status >= 500) {
+  // Always include stack in error response for easier debugging
+  if (normalised.status >= 500) {
     body.error.stack = error?.stack;
   }
 

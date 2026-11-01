@@ -48,9 +48,13 @@ export const allowedMimeTypes = [...ALLOWED_MIME_TYPES];
  * @returns {Promise<Object>} Cloudinary upload result
  */
 export async function uploadToCloudinary(buffer, { originalName, mimeType, folder = 'shopnonir/documents' }) {
+  if (!cloudinary.config().cloud_name) {
+    throw new Error('Cloudinary not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET');
+  }
+
   const isPdf = mimeType === 'application/pdf';
   const isImage = mimeType.startsWith('image/');
-  const isDocument = ['application/msword', 
+  const isDocument = ['application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(mimeType);

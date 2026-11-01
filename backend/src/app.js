@@ -119,7 +119,7 @@ app.get('/', (_req, res) => res.sendFile(path.join(opsDir, 'ops.html')));
 app.get('/console', (_req, res) => res.redirect('/'));
 app.get('/health', (_req, res) => res.redirect('/api/health'));
 
-if (config.serveFrontend) {
+if (config.serveFrontend && !config.isProduction) {
   const frontendDir = path.resolve(backendRoot, '../frontend');
   app.use(
     express.static(frontendDir, {
