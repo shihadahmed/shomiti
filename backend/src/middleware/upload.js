@@ -1,11 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import crypto from 'node:crypto';
 import multer from 'multer';
 import config from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
-
-fs.mkdirSync(config.uploadDir, { recursive: true });
+import cloudinary from '../config/cloudinary.js';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -18,13 +14,8 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]);
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, config.uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || '').toLowerCase().slice(0, 10);
-    cb(null, `${Date.now()}-${crypto.randomUUID()}${ext}`);
-  },
-});
+const MIN_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const fileFilter = (_req, file, cb) => {
   if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -38,13 +29,48 @@ const fileFilter = (_req, file, cb) => {
   return cb(null, true);
 };
 
+// Use memory storage for Cloudinary upload
+const storage = multer.memoryStorage();
+
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: config.maxUploadBytes, files: 1 },
+  limits: { fileSize: MAX_FILE_SIZE, files: 1 },
 });
 
 export const uploadSingle = (field = 'file') => upload.single(field);
 export const allowedMimeTypes = [...ALLOWED_MIME_TYPES];
+
+/**
+ * Upload buffer to Cloudinary
+ * @param {Buffer} buffer - File buffer
+ * @param {Object} options - { originalName, mimeType, folder }
+ * @returns {Promise<Object>} Cloudinary upload result
+ */
+export async function uploadToCloudinary(buffer, { originalName, mimeType, folder = 'shopnonir/documents' }) {
+  const isPdf = mimeType === 'application/pdf';
+  const isImage = mimeType.startsWith('image/');
+  const isDocument = ['application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(mimeType);
+
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: isImage ? 'image' : 'raw',
+        public_id: `${Date.now()}-${originalName.split('.')[0]}`,
+        use_filename: true,
+        unique_filename: true,
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      },
+    );
+    uploadStream.end(buffer);
+  });
+}
 
 export default upload;

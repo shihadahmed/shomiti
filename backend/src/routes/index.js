@@ -12,6 +12,7 @@ import ledgerRoutes from './ledger.routes.js';
 import auditRoutes from './audit.routes.js';
 import roleRoutes from './role.routes.js';
 import notificationRoutes from './notification.routes.js';
+import uploadRoutes from './upload.routes.js';
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/ledger', ledgerRoutes);
 router.use('/audit', auditRoutes);
 router.use('/roles', roleRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/upload', uploadRoutes);
 
 export default router;
