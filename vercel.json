@@ -3,17 +3,15 @@
   "framework": null,
   "regions": ["bom1"],
   "builds": [
-    { 
-      "src": "backend/src/app.js", 
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["backend/public/ops/**"]
-      }
-    }
+    { "src": "backend/public/ops/**", "use": "@vercel/static" },
+    { "src": "backend/src/app.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/backend/src/app.js" },
-    { "src": "/(.*)", "dest": "/backend/src/app.js" }
+    { "src": "/ops-assets/(.*)", "dest": "/backend/public/ops/$1" },
+    { "src": "/", "dest": "/backend/public/ops/ops.html" },
+    { "src": "/console", "dest": "/backend/public/ops/ops.html" },
+    { "src": "/health", "dest": "/backend/src/app.js" },
+    { "src": "/api/(.*)", "dest": "/backend/src/app.js" }
   ],
   "env": {
     "NODE_ENV": "production"
