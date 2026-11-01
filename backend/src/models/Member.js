@@ -7,6 +7,8 @@ const addressSchema = new mongoose.Schema(
     postOffice: { type: String, trim: true, maxlength: 120 },
     upazila: { type: String, trim: true, maxlength: 120 },
     district: { type: String, trim: true, maxlength: 120 },
+    // Additional fields for present/permanent address as free text
+    fullAddress: { type: String, trim: true, maxlength: 500 },
   },
   { _id: false },
 );
@@ -15,15 +17,15 @@ const nomineeSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 120 },
     relation: { type: String, required: true, trim: true, maxlength: 60 },
+    fatherHusbandName: { type: String, trim: true, maxlength: 160 },
     nid: { type: String, required: true, trim: true, maxlength: 30 },
+    dateOfBirth: Date,
     phone: { type: String, trim: true, maxlength: 20 },
+    address: { type: addressSchema, default: () => ({}) },
     percentage: { type: Number, required: true, min: 0, max: 100 },
-    photo: {
-      storedName: String,
-      originalName: String,
-      mimeType: String,
-      size: Number,
-    },
+    // Cloudinary URLs for nominee photo and NID document
+    photo: { type: String, trim: true },
+    nidDocument: { type: String, trim: true },
   },
   { _id: true },
 );
@@ -33,21 +35,19 @@ const memberSchema = new mongoose.Schema(
     code: { type: String, required: true, unique: true, uppercase: true, trim: true },
     fullName: { type: String, required: true, trim: true, maxlength: 160 },
     fullNameBn: { type: String, trim: true, maxlength: 160 },
-    fatherName: { type: String, trim: true, maxlength: 160 },
+    fatherHusbandName: { type: String, trim: true, maxlength: 160 },
     motherName: { type: String, trim: true, maxlength: 160 },
     spouseName: { type: String, trim: true, maxlength: 160 },
     nid: { type: String, required: true, unique: true, trim: true },
     dateOfBirth: Date,
     phone: { type: String, required: true, unique: true, trim: true },
     email: { type: String, trim: true, lowercase: true, sparse: true },
-    address: { type: addressSchema, default: () => ({}) },
+    presentAddress: { type: addressSchema, default: () => ({}) },
+    permanentAddress: { type: addressSchema, default: () => ({}) },
     occupation: { type: String, trim: true, maxlength: 120 },
-    photo: {
-      storedName: String,
-      originalName: String,
-      mimeType: String,
-      size: Number,
-    },
+    // Cloudinary URLs for member photo and NID document
+    photo: { type: String, trim: true },
+    nidDocument: { type: String, trim: true },
     joinDate: { type: Date, default: Date.now },
     status: { type: String, enum: MEMBER_STATUS_VALUES, default: MEMBER_STATUS.ACTIVE, index: true },
     shareCount: { type: Number, default: 1, min: 1 },
@@ -78,7 +78,7 @@ memberSchema.virtual('age').get(function age() {
 });
 
 memberSchema.virtual('hasPhoto').get(function hasPhoto() {
-  return Boolean(this.photo?.storedName);
+  return Boolean(this.photo);
 });
 
 memberSchema.virtual('nomineeTotalPercentage').get(function nomineeTotalPercentage() {
@@ -90,19 +90,18 @@ memberSchema.virtual('totalSavings').get(function totalSavings() {
   return 0;
 });
 
-memberSchema.pre('validate', function validateNominees(next) {
+memberSchema.pre('validate', async function validateNominees() {
   const nominees = this.nominees || [];
   if (nominees.length > 0) {
     const total = nominees.reduce((sum, n) => sum + (n.percentage || 0), 0);
     if (total !== 100) {
-      return next(new Error('Nominee percentages must sum to exactly 100%'));
+      throw new Error('Nominee percentages must sum to exactly 100%');
     }
     const dupes = nominees.filter((n, i, arr) => arr.findIndex((x) => x.nid === n.nid) !== i);
     if (dupes.length) {
-      return next(new Error('Duplicate nominee NIDs are not allowed'));
+      throw new Error('Duplicate nominee NIDs are not allowed');
     }
   }
-  next();
 });
 
 export default mongoose.models.Member || mongoose.model('Member', memberSchema);

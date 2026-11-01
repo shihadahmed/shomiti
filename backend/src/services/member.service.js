@@ -1,17 +1,21 @@
 import mongoose from 'mongoose';
 import Member from '../models/Member.js';
+import User from '../models/User.js';
 import SavingsAccount from '../models/SavingsAccount.js';
 import SavingsTransaction from '../models/SavingsTransaction.js';
 import ApiError from '../utils/ApiError.js';
 import { getPagination, paginationMeta } from '../utils/pagination.js';
 import { nextDocNo } from '../utils/sequence.js';
 import { writeAudit } from '../utils/audit.js';
-import { MEMBER_STATUS, SAVINGS_ACCOUNT_TYPES } from '../config/constants.js';
+import { hashPassword, createSetupToken } from '../utils/password.js';
+import * as emailService from './email.service.js';
+import crypto from 'node:crypto';
+import { MEMBER_STATUS, SAVINGS_ACCOUNT_TYPES, ROLES, USER_STATUS } from '../config/constants.js';
 
 const EDITABLE_FIELDS = [
   'fullName',
   'fullNameBn',
-  'fatherName',
+  'fatherHusbandName',
   'motherName',
   'spouseName',
   'nid',
@@ -25,32 +29,64 @@ const EDITABLE_FIELDS = [
   'notes',
 ];
 
-function assertObjectId(id, label = 'member') {
-  if (!mongoose.isValidObjectId(id)) {
-    throw ApiError.badRequest(`Invalid ${label} id.`, 'INVALID_IDENTIFIER');
+function mapAddress(payload, field) {
+  // Handle both structured address and fullAddress text
+  if (!payload[field]) return {};
+  const addr = payload[field];
+  if (typeof addr === 'string') {
+    return { fullAddress: addr };
   }
+  return {
+    village: addr.village,
+    postOffice: addr.postOffice,
+    upazila: addr.upazila,
+    district: addr.district,
+    fullAddress: addr.fullAddress,
+  };
 }
 
-function escapeRegex(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function mapDocument(payload, field) {
+  if (!payload[field]) return '';
+  const doc = payload[field];
+  if (typeof doc === 'string') {
+    return doc; // Return the Cloudinary URL directly
+  }
+  // Legacy object format - extract URL
+  return doc.url || doc.dataUrl || '';
 }
 
 function applyEditableFields(member, payload) {
   for (const field of EDITABLE_FIELDS) {
     if (payload[field] !== undefined) member[field] = payload[field];
   }
-  if (payload.address && typeof payload.address === 'object') {
-    const current = member.address?.toObject?.() ?? member.address ?? {};
-    member.address = { ...current, ...payload.address };
+  // Handle presentAddress
+  if (payload.presentAddress !== undefined) {
+    member.presentAddress = mapAddress(payload, 'presentAddress');
+  }
+  // Handle permanentAddress
+  if (payload.permanentAddress !== undefined) {
+    member.permanentAddress = mapAddress(payload, 'permanentAddress');
+  }
+  // Handle photo (Cloudinary URL string)
+  if (payload.photo !== undefined) {
+    member.photo = mapDocument(payload, 'photo');
+  }
+  // Handle nidDocument (Cloudinary URL string)
+  if (payload.nidDocument !== undefined) {
+    member.nidDocument = mapDocument(payload, 'nidDocument');
   }
   if (payload.nominees && Array.isArray(payload.nominees)) {
     member.nominees = payload.nominees.map((n) => ({
       name: n.name,
       relation: n.relation,
+      fatherHusbandName: n.fatherHusbandName,
       nid: n.nid,
+      dateOfBirth: n.dob || n.dateOfBirth,
       phone: n.phone,
+      address: mapAddress(n, 'address'),
       percentage: Number(n.percentage),
-      photo: n.photo,
+      photo: mapDocument(n, 'photo'),
+      nidDocument: mapDocument(n, 'nidDocument'),
     }));
   }
 }
@@ -67,9 +103,14 @@ export async function createMember(payload, actor, req) {
       const nominees = Array.isArray(payload.nominees) ? payload.nominees.map((n) => ({
         name: n.name,
         relation: n.relation,
+        fatherHusbandName: n.fatherHusbandName,
         nid: n.nid,
+        dateOfBirth: n.dob || n.dateOfBirth,
         phone: n.phone,
+        address: mapAddress(n, 'address'),
         percentage: Number(n.percentage),
+        photo: mapDocument(n, 'photo'),
+        nidDocument: mapDocument(n, 'nidDocument'),
       })) : [];
 
       const [member] = await Member.create(
@@ -77,18 +118,21 @@ export async function createMember(payload, actor, req) {
           {
             fullName: payload.fullName,
             fullNameBn: payload.fullNameBn,
-            fatherName: payload.fatherName,
+            fatherHusbandName: payload.fatherHusbandName,
             motherName: payload.motherName,
             spouseName: payload.spouseName,
             nid: payload.nid,
-            dateOfBirth: payload.dateOfBirth,
+            dateOfBirth: payload.dob || payload.dateOfBirth,
             phone: payload.phone,
             email: payload.email || undefined,
-            address: payload.address || {},
+            presentAddress: mapAddress(payload, 'presentAddress'),
+            permanentAddress: mapAddress(payload, 'permanentAddress'),
             occupation: payload.occupation,
+            photo: mapDocument(payload, 'photo'),
+            nidDocument: mapDocument(payload, 'nidDocument'),
             joinDate,
             status: payload.status || MEMBER_STATUS.ACTIVE,
-            shareCount: payload.shareCount ?? 0,
+            shareCount: payload.shareCount ?? 1,
             nominees,
             notes: payload.notes,
             code,
@@ -110,6 +154,64 @@ export async function createMember(payload, actor, req) {
         { session },
       );
 
+      // Create User account for member portal access if email is provided
+      let user = null;
+      let emailSent = false;
+      
+      if (payload.email) {
+        // Check if user already exists with this email or phone
+        const existingUser = await User.findOne({
+          $or: [{ email: payload.email.toLowerCase() }, { phone: payload.phone }],
+        }).session(session);
+
+        if (!existingUser) {
+          const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
+          const placeholderPassword = await hashPassword(crypto.randomBytes(32).toString('hex'));
+
+          user = await User.create(
+            [
+              {
+                name: payload.fullName,
+                email: payload.email.toLowerCase(),
+                phone: payload.phone,
+                nid: payload.nid,
+                role: ROLES.MEMBER,
+                member: member._id,
+                passwordHash: placeholderPassword,
+                resetPasswordToken: tokenHash,
+                resetPasswordExpires: tokenExpires,
+                mustChangePassword: true,
+                status: USER_STATUS.INVITED,
+              },
+            ],
+            { session },
+          );
+
+          // Send welcome/password setup email
+          try {
+            await emailService.sendInviteEmail({
+              to: user.email,
+              name: user.name,
+              token: rawToken,
+            });
+            emailSent = true;
+          } catch (emailError) {
+            console.error('[Member Service] Failed to send welcome email:', emailError);
+            // Don't throw - member creation succeeded, email can be resent later
+          }
+
+          // Send profile completion email
+          try {
+            await emailService.sendProfileSubmittedEmail({
+              to: user.email,
+              name: user.name,
+            });
+          } catch (emailError) {
+            console.error('[Member Service] Failed to send profile completion email:', emailError);
+          }
+        }
+      }
+
       await writeAudit({
         actor: actor._id,
         action: 'member.created',
@@ -120,7 +222,7 @@ export async function createMember(payload, actor, req) {
         session,
       });
 
-      return { member, account };
+      return { member, account, user, emailSent };
     });
 
     return result;
@@ -242,12 +344,7 @@ export async function setMemberPhoto(id, file, actor, req) {
   if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
 
   const before = member.toObject();
-  member.photo = {
-    storedName: file.filename,
-    originalName: file.originalname,
-    mimeType: file.mimetype,
-    size: file.size,
-  };
+  member.photo = file.filename; // Store Cloudinary URL or filename
   await member.save();
 
   await writeAudit({
@@ -266,13 +363,14 @@ export async function setMemberPhoto(id, file, actor, req) {
 export async function getMemberPhoto(id) {
   assertObjectId(id);
   const member = await Member.findById(id).select('photo fullName');
-  if (!member?.photo?.storedName) {
+  if (!member?.photo) {
     throw ApiError.notFound('No photo on file for this member.', 'PHOTO_NOT_FOUND');
   }
   return {
-    storedName: member.photo.storedName,
-    mimeType: member.photo.mimeType || 'application/octet-stream',
-    originalName: member.photo.originalName || 'member-photo',
+    // photo is now a string (Cloudinary URL)
+    url: member.photo,
+    mimeType: 'image/jpeg',
+    originalName: `${member.fullName}-photo`,
   };
 }
 

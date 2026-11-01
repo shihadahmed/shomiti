@@ -1,6 +1,4 @@
-import path from 'node:path';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import config from '../config/env.js';
 import * as memberService from '../services/member.service.js';
 
 /** GET /api/members — searchable, paginated member registry. */
@@ -58,8 +56,8 @@ export const uploadPhoto = asyncHandler(async (req, res) => {
 /** GET /api/members/:id/photo */
 export const downloadPhoto = asyncHandler(async (req, res) => {
   const photo = await memberService.getMemberPhoto(req.params.id);
-  const filePath = path.join(config.uploadDir, path.basename(photo.storedName));
-  return res.type(photo.mimeType).sendFile(filePath);
+  // Redirect to Cloudinary URL
+  return res.redirect(photo.url);
 });
 
 export default {
