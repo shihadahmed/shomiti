@@ -41,7 +41,7 @@ export default function MemberRegistrationForm({
     nominees: [
       {
         name: '',
-        relationship: '',
+        relation: '',
         fatherHusbandName: '',
         nid: '',
         dob: '',
@@ -71,11 +71,20 @@ export default function MemberRegistrationForm({
         permanentAddress: initialData.permanentAddress || '',
         sameAsPresent: initialData.presentAddress === initialData.permanentAddress,
         nominees: initialData.nominees?.length
-          ? initialData.nominees
+          ? initialData.nominees.map(n => ({
+              name: n.name || '',
+              relation: n.relation || n.relationship || '', // support both for backward compat
+              fatherHusbandName: n.fatherHusbandName || '',
+              nid: n.nid || '',
+              dob: n.dob || '',
+              phone: n.phone || '',
+              address: n.address || '',
+              percentage: n.percentage || 0,
+            }))
           : [
               {
                 name: '',
-                relationship: '',
+                relation: '',
                 fatherHusbandName: '',
                 nid: '',
                 dob: '',
@@ -130,7 +139,7 @@ export default function MemberRegistrationForm({
         ...prev.nominees,
         {
           name: '',
-          relationship: '',
+          relation: '',
           fatherHusbandName: '',
           nid: '',
           dob: '',
@@ -156,12 +165,29 @@ export default function MemberRegistrationForm({
     0
   );
 
+  // Validation helpers
+  const isValidNid = (nid) => /^\d{10}$|^\d{13}$|^\d{17}$/.test(nid);
+  const isValidBdPhone = (phone) => /^01[3-9]\d{8}$/.test(phone);
+
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.fullName.trim()) newErrors.fullName = 'Full Name is required';
-    if (!formData.nid.trim()) newErrors.nid = 'NID number is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Mobile number is required';
+    
+    // Member NID validation
+    if (!formData.nid.trim()) {
+      newErrors.nid = 'NID number is required';
+    } else if (!isValidNid(formData.nid.trim())) {
+      newErrors.nid = 'NID must be 10, 13 or 17 digits';
+    }
+    
+    // Member Phone validation
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Mobile number is required';
+    } else if (!isValidBdPhone(formData.phone.trim())) {
+      newErrors.phone = 'Enter a valid Bangladeshi mobile number (013-019XXXXXXX)';
+    }
+    
     if (!formData.presentAddress.trim()) newErrors.presentAddress = 'Present address is required';
 
     if (totalNomineePercentage !== 100) {
@@ -170,8 +196,26 @@ export default function MemberRegistrationForm({
 
     formData.nominees.forEach((n, idx) => {
       if (!n.name.trim()) newErrors[`nominee_${idx}_name`] = 'Nominee name required';
-      if (!n.relationship) newErrors[`nominee_${idx}_rel`] = 'Relationship required';
+      if (!n.relation) newErrors[`nominee_${idx}_rel`] = 'Relationship required';
+      
+      // Nominee NID validation (required + format)
+      if (!n.nid.trim()) {
+        newErrors[`nominee_${idx}_nid`] = 'Nominee NID is required';
+      } else if (!isValidNid(n.nid.trim())) {
+        newErrors[`nominee_${idx}_nid`] = 'NID must be 10, 13 or 17 digits';
+      }
+      
+      // Nominee phone format validation (optional but if provided, must be valid)
+      if (n.phone.trim() && !isValidBdPhone(n.phone.trim())) {
+        newErrors[`nominee_${idx}_phone`] = 'Enter a valid Bangladeshi mobile number';
+      }
     });
+
+    // Check for duplicate nominee NIDs
+    const nomineeNids = formData.nominees.map(n => n.nid.trim()).filter(Boolean);
+    if (new Set(nomineeNids).size !== nomineeNids.length) {
+      newErrors.nomineeDuplicateNid = 'Duplicate nominee NIDs are not allowed';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -248,7 +292,7 @@ export default function MemberRegistrationForm({
           />
           <Input
             label="National ID (NID) / Birth Cert *"
-            placeholder="Enter NID or Birth Cert No."
+            placeholder="10, 13 or 17 digits"
             value={formData.nid}
             onChange={(e) => handleInputChange('nid', e.target.value)}
             error={errors.nid}
@@ -350,6 +394,10 @@ export default function MemberRegistrationForm({
           <p className="text-xs font-semibold text-rose-600">{errors.nomineePercentage}</p>
         )}
 
+        {errors.nomineeDuplicateNid && (
+          <p className="text-xs font-semibold text-rose-600">{errors.nomineeDuplicateNid}</p>
+        )}
+
         {formData.nominees.map((nominee, idx) => (
           <div
             key={idx}
@@ -380,8 +428,8 @@ export default function MemberRegistrationForm({
               <Select
                 label="Relationship *"
                 options={RELATIONSHIPS}
-                value={nominee.relationship}
-                onChange={(e) => handleNomineeChange(idx, 'relationship', e.target.value)}
+                value={nominee.relation}
+                onChange={(e) => handleNomineeChange(idx, 'relation', e.target.value)}
                 error={errors[`nominee_${idx}_rel`]}
                 required
               />
@@ -395,16 +443,19 @@ export default function MemberRegistrationForm({
                 required
               />
               <Input
-                label="NID / Birth Registration"
-                placeholder="NID number"
+                label="NID / Birth Registration *"
+                placeholder="10, 13 or 17 digits"
                 value={nominee.nid}
                 onChange={(e) => handleNomineeChange(idx, 'nid', e.target.value)}
+                error={errors[`nominee_${idx}_nid`]}
+                required
               />
               <Input
                 label="Mobile Number"
                 placeholder="017XXXXXXXX"
                 value={nominee.phone}
                 onChange={(e) => handleNomineeChange(idx, 'phone', e.target.value)}
+                error={errors[`nominee_${idx}_phone`]}
               />
               <Input
                 label="Address"
