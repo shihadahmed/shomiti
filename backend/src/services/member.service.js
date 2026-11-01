@@ -9,6 +9,7 @@ import { nextDocNo } from '../utils/sequence.js';
 import { writeAudit } from '../utils/audit.js';
 import { hashPassword, createSetupToken } from '../utils/password.js';
 import * as emailService from './email.service.js';
+import { uploadToCloudinary } from '../middleware/upload.js';
 import crypto from 'node:crypto';
 import { MEMBER_STATUS, SAVINGS_ACCOUNT_TYPES, ROLES, USER_STATUS } from '../config/constants.js';
 
@@ -28,6 +29,14 @@ const EDITABLE_FIELDS = [
   'shareCount',
   'notes',
 ];
+
+function assertObjectId(id) {
+  if (!mongoose.isValidObjectId(id)) {
+    throw ApiError.badRequest('Invalid member id.', 'INVALID_IDENTIFIER');
+  }
+}
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function mapAddress(payload, field) {
   // Handle both structured address and fullAddress text
@@ -93,9 +102,10 @@ function applyEditableFields(member, payload) {
 
 export async function createMember(payload, actor, req) {
   const session = await mongoose.startSession();
+  let outcome;
 
   try {
-    const result = await session.withTransaction(async () => {
+    outcome = await session.withTransaction(async () => {
       const joinDate = payload.joinDate ? new Date(payload.joinDate) : new Date();
       const code = await nextDocNo('SOM', 'member', { date: joinDate });
       const accountNo = await nextDocNo('SAV', 'savings-account', { date: joinDate });
@@ -156,8 +166,8 @@ export async function createMember(payload, actor, req) {
 
       // Create User account for member portal access if email is provided
       let user = null;
-      let emailSent = false;
-      
+      let inviteToken = null;
+
       if (payload.email) {
         // Check if user already exists with this email or phone
         const existingUser = await User.findOne({
@@ -168,7 +178,9 @@ export async function createMember(payload, actor, req) {
           const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
           const placeholderPassword = await hashPassword(crypto.randomBytes(32).toString('hex'));
 
-          user = await User.create(
+          // `Model.create([doc])` resolves to an array — destructure it, otherwise
+          // `user.email` / `user.name` are undefined and the invite never sends.
+          const [createdUser] = await User.create(
             [
               {
                 name: payload.fullName,
@@ -187,28 +199,8 @@ export async function createMember(payload, actor, req) {
             { session },
           );
 
-          // Send welcome/password setup email
-          try {
-            await emailService.sendInviteEmail({
-              to: user.email,
-              name: user.name,
-              token: rawToken,
-            });
-            emailSent = true;
-          } catch (emailError) {
-            console.error('[Member Service] Failed to send welcome email:', emailError);
-            // Don't throw - member creation succeeded, email can be resent later
-          }
-
-          // Send profile completion email
-          try {
-            await emailService.sendProfileSubmittedEmail({
-              to: user.email,
-              name: user.name,
-            });
-          } catch (emailError) {
-            console.error('[Member Service] Failed to send profile completion email:', emailError);
-          }
+          user = createdUser;
+          inviteToken = rawToken;
         }
       }
 
@@ -222,13 +214,45 @@ export async function createMember(payload, actor, req) {
         session,
       });
 
-      return { member, account, user, emailSent };
+      return { member, account, user, inviteToken };
     });
-
-    return result;
   } finally {
     await session.endSession();
   }
+
+  // Emails are sent after the transaction commits: a slow SMTP server must never
+  // hold the transaction (and its locks) open, and a mail failure must not roll
+  // back a member that was created successfully.
+  let emailSent = false;
+
+  if (outcome.user && outcome.inviteToken) {
+    try {
+      await emailService.sendInviteEmail({
+        to: outcome.user.email,
+        name: outcome.user.name,
+        token: outcome.inviteToken,
+      });
+      emailSent = true;
+    } catch (emailError) {
+      console.error('[Member Service] Failed to send welcome email:', emailError);
+    }
+
+    try {
+      await emailService.sendProfileSubmittedEmail({
+        to: outcome.user.email,
+        name: outcome.user.name,
+      });
+    } catch (emailError) {
+      console.error('[Member Service] Failed to send profile completion email:', emailError);
+    }
+  }
+
+  return {
+    member: outcome.member,
+    account: outcome.account,
+    user: outcome.user,
+    emailSent,
+  };
 }
 
 export async function listMembers(query) {
@@ -283,7 +307,7 @@ export async function listMembers(query) {
     items: rows.map((row) => ({
       ...row,
       savingsBalance: Math.round(row.savingsBalancePaisa || 0) / 100,
-      hasPhoto: Boolean(row.photo?.storedName),
+      hasPhoto: Boolean(row.photo),
     })),
     meta: paginationMeta(total, page, limit),
   };
@@ -343,8 +367,16 @@ export async function setMemberPhoto(id, file, actor, req) {
   const member = await Member.findById(id);
   if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
 
+  // multer is configured with memoryStorage, so there is no `file.filename` on
+  // disk — the buffer has to be pushed to Cloudinary and its URL persisted.
+  const uploaded = await uploadToCloudinary(file.buffer, {
+    originalName: file.originalname,
+    mimeType: file.mimetype,
+    folder: 'shopnonir/members',
+  });
+
   const before = member.toObject();
-  member.photo = file.filename; // Store Cloudinary URL or filename
+  member.photo = uploaded.secure_url;
   await member.save();
 
   await writeAudit({
