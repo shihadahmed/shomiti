@@ -209,6 +209,33 @@ export async function connectDB(uri = process.env.MONGODB_URI) {
   return mongoose.connection;
 }
 
+/**
+ * Serverless-safe lazy connection.
+ *
+ * Vercel's Express preset loads `src/app.js` (the module that default-exports
+ * the app) and never runs the startup sequence in `src/server.js`, so the
+ * `connectDB()` call that normally happens before `app.listen()` never
+ * happens either. Mongoose then stays disconnected and every query fails with
+ * a buffering timeout.
+ *
+ * Each request awaits this instead. The first call opens the connection, the
+ * rest reuse it (readyState 1 short-circuits), and a failed attempt clears the
+ * cached promise so the next request can retry rather than caching the error
+ * forever.
+ */
+let ensurePromise = null;
+
+export function ensureDbConnected() {
+  if (mongoose.connection.readyState === 1) return Promise.resolve(mongoose.connection);
+  if (ensurePromise) return ensurePromise;
+
+  ensurePromise = connectDB().finally(() => {
+    ensurePromise = null;
+  });
+
+  return ensurePromise;
+}
+
 export async function disconnectDB() {
   if (mongoose.connection.readyState === 0) return;
   intentionalDisconnect = true;

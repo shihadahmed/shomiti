@@ -6,6 +6,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import config, { backendRoot } from './config/env.js';
+import { ensureDbConnected } from './config/db.js';
 import routes from './routes/index.js';
 import { requireCustomHeader } from './middleware/csrf.js';
 import { globalLimiter } from './middleware/rateLimit.js';
@@ -55,19 +56,51 @@ app.use(cookieParser());
 /** High-frequency probes — never worth a log line on either side. */
 const QUIET_PATHS = ['/api/health', '/api/system'];
 
+function isQuietPath(url) {
+  // `req.path` is rewritten by the mounted /api router ("/health"),
+  // so always match against the untouched original URL.
+  const requestPath = (url || '').split('?')[0];
+  return QUIET_PATHS.some(
+    (path) => requestPath === path || requestPath.startsWith(`${path}/`),
+  );
+}
+
 if (config.nodeEnv !== 'test') {
   app.use(
     morgan(config.isProduction ? 'combined' : 'dev', {
-      skip: (req) => {
-        // `req.path` is rewritten by the mounted /api router ("/health"),
-        // so match against the untouched original URL instead.
-        const requestPath = (req.originalUrl || req.url || '').split('?')[0];
-        return QUIET_PATHS.some(
-          (path) => requestPath === path || requestPath.startsWith(`${path}/`),
-        );
-      },
+      skip: (req) => isQuietPath(req.originalUrl || req.url),
     }),
   );
+}
+
+/**
+ * Vercel's Express preset loads this module and serves the exported app
+ * directly; it never runs the `start()` sequence in server.js. Nothing would
+ * therefore connect Mongoose, and every query would fail with a buffering
+ * timeout.
+ *
+ * Connect on the first API request instead and reuse the connection for the
+ * rest of the instance's lifetime. Health probes are still let through when
+ * the connection fails — their job is to report the outage, not to become a
+ * 500 of their own.
+ */
+if (config.nodeEnv !== 'test') {
+  app.use('/api', (req, _res, next) => {
+    ensureDbConnected().then(
+      () => next(),
+      (error) => {
+        console.error(`[db] lazy connect failed: ${error.message}`);
+        if (isQuietPath(req.originalUrl || req.url)) return next();
+        return next(
+          new ApiError(
+            503,
+            'DB_UNAVAILABLE',
+            'The database is unavailable. Please try again shortly.',
+          ),
+        );
+      },
+    );
+  });
 }
 
 app.use('/api', globalLimiter, requireCustomHeader, routes);
