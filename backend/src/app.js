@@ -101,9 +101,7 @@ if (config.serveFrontend) {
 app.use(notFound);
 
 app.use((error, req, res, next) => {
-  if (req.file?.path) {
-    fs.unlink(req.file.path, () => {});
-  }
+  // No local file cleanup needed - using memory storage for Cloudinary
   return errorHandler(error, req, res, next);
 });
 
