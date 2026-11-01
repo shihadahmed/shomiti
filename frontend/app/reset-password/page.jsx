@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useLang } from '@/lib/useLang';
 import { apiPost } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
-import { Icon, Input, Button } from '@/components/ui/common';
+import { Icon, Input, Button, PageHeader, LoadingSpinner } from '@/components/ui/common';
 import { toast } from 'react-toastify';
 
 function ResetPasswordForm() {
