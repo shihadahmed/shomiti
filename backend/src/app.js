@@ -106,21 +106,20 @@ if (config.nodeEnv !== 'test') {
 app.use('/api', globalLimiter, requireCustomHeader, routes);
 app.use('/api', notFound);
 
-// Operations console and health redirect — only in local development
-if (!config.isProduction) {
-  const opsDir = path.join(backendRoot, 'public', 'ops');
-  app.use(
-    '/ops-assets',
-    express.static(opsDir, {
-      maxAge: '1h',
-      etag: true,
-    }),
-  );
-  app.get('/', (_req, res) => res.sendFile(path.join(opsDir, 'ops.html')));
-  app.get('/console', (_req, res) => res.redirect('/'));
-  app.get('/health', (_req, res) => res.redirect('/api/health'));
-}
+// Operations console (served on the backend root) — available in all environments
+const opsDir = path.join(backendRoot, 'public', 'ops');
+app.use(
+  '/ops-assets',
+  express.static(opsDir, {
+    maxAge: config.isProduction ? '1h' : 0,
+    etag: true,
+  }),
+);
+app.get('/', (_req, res) => res.sendFile(path.join(opsDir, 'ops.html')));
+app.get('/console', (_req, res) => res.redirect('/'));
+app.get('/health', (_req, res) => res.redirect('/api/health'));
 
+// Frontend serving — only in local development (production frontend is on separate domain)
 if (config.serveFrontend && !config.isProduction) {
   const frontendDir = path.resolve(backendRoot, '../frontend');
   app.use(
