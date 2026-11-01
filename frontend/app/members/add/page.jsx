@@ -11,12 +11,9 @@ export default function AddMemberPage() {
   const router = useRouter();
   const { tr } = useLang();
 
-  const handleSuccess = (member) => {
-    if (member?._id) {
-      router.push(`/members/${member._id}`);
-    } else {
-      router.push('/members');
-    }
+  const handleSuccess = () => {
+    // There is no `/members/[id]` detail route, so land back on the registry list.
+    router.push('/members');
   };
 
   const handleCancel = () => {
@@ -27,7 +24,6 @@ export default function AddMemberPage() {
     <AppShell>
       <PageHeader title={tr('members.newTitle')} subtitle={tr('members.subtitle')} />
       <MemberRegistrationForm
-        mode="page"
         onSuccess={handleSuccess}
         onCancel={handleCancel}
       />

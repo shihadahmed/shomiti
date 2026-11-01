@@ -311,15 +311,19 @@ export default function MemberRegistrationForm({
 
     setSubmitting(true);
     try {
+      let result;
       if (initialData?._id) {
-        await apiPatch(`/members/${initialData._id}`, formData);
+        result = await apiPatch(`/members/${initialData._id}`, formData);
         toast.success(tr('toast.updated') || 'Member profile updated successfully');
       } else {
-        await apiPost('/members', formData);
+        result = await apiPost('/members', formData);
         toast.success(tr('toast.created') || 'Member registered successfully');
       }
 
-      if (onSuccess) onSuccess();
+      // `POST /members` returns { member, account, user, emailSent } while
+      // `PATCH /members/:id` returns { member } — normalise before handing the
+      // saved member back to the caller.
+      if (onSuccess) onSuccess(result?.member ?? result);
     } catch (err) {
       toast.error(err?.message || tr('error.generic') || 'Something went wrong');
     } finally {

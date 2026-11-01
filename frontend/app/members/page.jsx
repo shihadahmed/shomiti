@@ -321,7 +321,6 @@ export default function MembersPage() {
         <div className="py-2">
           <MemberRegistrationForm
             initialData={editingMember}
-            mode="modal"
             onSuccess={() => {
               closeModal();
               reload();
