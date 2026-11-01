@@ -69,7 +69,7 @@ const memberSchema = new mongoose.Schema(
 
 memberSchema.index({ fullName: 'text', code: 'text', phone: 'text', fullNameBn: 'text', email: 'text' });
 memberSchema.index({ createdAt: -1 });
-memberSchema.index({ status: 1, isActive: 1 });
+memberSchema.index({ status: 1, createdAt: -1 });
 
 memberSchema.virtual('age').get(function age() {
   if (!this.dateOfBirth) return null;
