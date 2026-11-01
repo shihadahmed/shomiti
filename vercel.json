@@ -3,10 +3,10 @@
   "framework": null,
   "regions": ["bom1"],
   "builds": [
-    { "src": "backend/src/app.js", "use": "@vercel/node" }
+    { "src": "src/app.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/backend/src/app.js" }
+    { "src": "/api/(.*)", "dest": "/src/app.js" }
   ],
   "env": {
     "NODE_ENV": "production"
