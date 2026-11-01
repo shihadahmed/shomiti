@@ -1,6 +1,6 @@
 import User from '../models/User.js';
 import ApiError from '../utils/ApiError.js';
-import { hashPassword, verifyPassword, generateTemporaryPassword, createSetupToken } from '../utils/password.js';
+import { hashPassword, verifyPassword, generateTemporaryPassword, createSetupToken, hashToken } from '../utils/password.js';
 import { signAccessToken } from '../utils/jwt.js';
 import { writeAudit } from '../utils/audit.js';
 import { ROLES, ROLE_VALUES, STAFF_ROLES, EXECUTIVE_ROLES, USER_STATUS } from '../config/constants.js';
