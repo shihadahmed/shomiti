@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getLang } from './i18n';
+import { useAuthStore } from './auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -26,6 +27,12 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const lang = getLang();
   config.headers['Accept-Language'] = lang;
+
+  // Attach Bearer token from store as fallback when cookie is unavailable
+  const token = useAuthStore.getState()?.token;
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 

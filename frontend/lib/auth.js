@@ -99,8 +99,13 @@ export const useAuthStore = create(
             isAuthenticated: Boolean(payload.user),
             isLoading: false,
           });
-        } catch {
-          set({ user: null, isAuthenticated: false, isLoading: false });
+        } catch (error) {
+          // Only clear session on genuine auth failure (401)
+          // Transient errors (network, 429, 500, CORS) should NOT log the user out
+          if (error instanceof ApiError && error.status === 401) {
+            set({ user: null, isAuthenticated: false, isLoading: false });
+          }
+          // For other errors, keep existing state; UI will surface via useApi hooks
         }
       },
 
