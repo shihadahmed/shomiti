@@ -1,7 +1,7 @@
 import multer from 'multer';
 import config from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
-import cloudinary from '../config/cloudinary.js';
+import cloudinary, { isCloudinaryConfigured } from '../config/cloudinary.js';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -48,8 +48,8 @@ export const allowedMimeTypes = [...ALLOWED_MIME_TYPES];
  * @returns {Promise<Object>} Cloudinary upload result
  */
 export async function uploadToCloudinary(buffer, { originalName, mimeType, folder = 'shopnonir/documents' }) {
-  if (!cloudinary.config().cloud_name) {
-    throw new Error('Cloudinary not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET');
+  if (!isCloudinaryConfigured) {
+    throw new Error('Cloudinary not configured. Set a valid CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.');
   }
 
   const isPdf = mimeType === 'application/pdf';

@@ -1,7 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import ApiError from '../utils/ApiError.js';
 import { uploadToCloudinary } from '../middleware/upload.js';
-import cloudinary from '../config/cloudinary.js';
+import { isCloudinaryConfigured } from '../config/cloudinary.js';
 
 /**
  * POST /api/upload
@@ -18,8 +18,12 @@ export const uploadFile = asyncHandler(async (req, res) => {
   }
 
   // Check if Cloudinary is configured
-  if (!cloudinary.config().cloud_name) {
-    throw ApiError.internal('File upload service not configured. Please contact administrator.', 'UPLOAD_SERVICE_UNAVAILABLE');
+  if (!isCloudinaryConfigured) {
+    throw new ApiError(
+      503,
+      'UPLOAD_SERVICE_UNAVAILABLE',
+      'File upload service is not configured correctly. Please contact the administrator.',
+    );
   }
 
   const { originalname, mimetype, buffer } = req.file;
@@ -45,6 +49,18 @@ export const uploadFile = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error('[Upload] Cloudinary upload failed:', error);
+    const message = String(error?.message || '');
+    if (
+      error?.http_code === 401 ||
+      error?.http_code === 403 ||
+      /cloud_name|credentials|api[_ ]key|api[_ ]secret/i.test(message)
+    ) {
+      throw new ApiError(
+        503,
+        'UPLOAD_SERVICE_UNAVAILABLE',
+        'File storage is not configured correctly. Please contact the administrator.',
+      );
+    }
     throw ApiError.internal('Failed to upload file to Cloudinary.', 'UPLOAD_FAILED');
   }
 });
