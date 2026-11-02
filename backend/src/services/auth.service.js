@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Member from '../models/Member.js';
 import ApiError from '../utils/ApiError.js';
 import { hashPassword, verifyPassword, generateTemporaryPassword, createSetupToken, hashToken } from '../utils/password.js';
 import { signAccessToken } from '../utils/jwt.js';
@@ -70,29 +71,33 @@ export async function createStaff(payload, actor, req) {
   if (!STAFF_CREATABLE_ROLES.includes(payload.role)) {
     throw ApiError.badRequest('This role cannot be created here.', 'ROLE_NOT_ALLOWED');
   }
-  if (payload.role === ROLES.MEMBER && !payload.memberId) {
-    throw ApiError.badRequest('A member portal account needs a linked member.', 'MEMBER_REQUIRED');
+
+  const member = req.memberData;
+  if (!member) {
+    throw ApiError.badRequest('Member not found or already has a user account.', 'MEMBER_NOT_AVAILABLE');
   }
 
   const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
   const placeholderPassword = await hashPassword(crypto.randomBytes(32).toString('hex'));
 
   const user = await User.create({
-    name: payload.name,
-    email: payload.email || undefined,
-    phone: payload.phone,
-    nid: payload.nid,
+    name: member.fullName,
+    email: member.email || undefined,
+    phone: member.phone,
+    nid: member.nid,
     role: payload.role,
-    member: payload.memberId || undefined,
+    memberId: member._id,
     passwordHash: placeholderPassword,
     resetPasswordToken: tokenHash,
     resetPasswordExpires: tokenExpires,
     mustChangePassword: true,
   });
 
+  await Member.findByIdAndUpdate(member._id, { userId: user._id });
+
   try {
     await emailService.sendInviteEmail({
-      to: user.email,
+      to: user.email || member.email,
       name: user.name,
       token: rawToken,
     });
@@ -111,7 +116,7 @@ export async function createStaff(payload, actor, req) {
       emailSent: true,
     };
   } catch (error) {
-    // Rollback: delete the user if email fails to prevent orphan accounts
+    await Member.findByIdAndUpdate(member._id, { userId: null });
     await User.findByIdAndDelete(user._id);
     throw new Error(`Failed to send invitation email: ${error.message}`);
   }
@@ -134,11 +139,11 @@ export async function listUsers(query = {}) {
 
   const [items, total] = await Promise.all([
     User.find(filter)
-      .select('name email phone role isActive lastLoginAt createdAt member')
+      .select('name email phone role isActive lastLoginAt createdAt memberId')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('member', 'name code'),
+      .populate('memberId', 'fullName code phone'),
     User.countDocuments(filter),
   ]);
 

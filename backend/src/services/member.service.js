@@ -188,7 +188,7 @@ export async function createMember(payload, actor, req) {
                 phone: payload.phone,
                 nid: payload.nid,
                 role: ROLES.MEMBER,
-                member: member._id,
+                memberId: member._id,
                 passwordHash: placeholderPassword,
                 resetPasswordToken: tokenHash,
                 resetPasswordExpires: tokenExpires,
@@ -201,6 +201,10 @@ export async function createMember(payload, actor, req) {
 
           user = createdUser;
           inviteToken = rawToken;
+          
+          // Update member with userId
+          member.userId = user._id;
+          await member.save({ session });
         }
       }
 
@@ -269,6 +273,11 @@ export async function listMembers(query) {
       { phone: regex },
       { nid: regex },
     ];
+  }
+  if (query.hasUser === 'true') {
+    match.userId = { $ne: null };
+  } else if (query.hasUser === 'false') {
+    match.userId = null;
   }
 
   const [facet] = await Member.aggregate([
