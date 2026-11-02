@@ -106,16 +106,33 @@ if (config.nodeEnv !== 'test') {
 app.use('/api', globalLimiter, requireCustomHeader, routes);
 app.use('/api', notFound);
 
-// Operations console (served on the backend root) — available in all environments
-const opsDir = path.join(backendRoot, 'public', 'ops');
-app.use(
-  '/ops-assets',
-  express.static(opsDir, {
-    maxAge: config.isProduction ? '1h' : 0,
-    etag: true,
-  }),
-);
-app.get('/', (_req, res) => res.sendFile(path.join(opsDir, 'ops.html')));
+// Operations console (served on the backend root) — available in all environments.
+// Files are referenced through `new URL(..., import.meta.url)` so Vercel's file
+// tracer bundles them into the serverless function. `res.sendFile()` and
+// `express.static()` are invisible to the tracer, which caused ENOENT on Vercel.
+const OPS_ASSETS = new Map([
+  ['ops.html', { type: 'text/html; charset=utf-8', url: new URL('../public/ops/ops.html', import.meta.url) }],
+  ['ops.css', { type: 'text/css; charset=utf-8', url: new URL('../public/ops/ops.css', import.meta.url) }],
+  ['ops.js', { type: 'text/javascript; charset=utf-8', url: new URL('../public/ops/ops.js', import.meta.url) }],
+  ['lucide.css', { type: 'text/css; charset=utf-8', url: new URL('../public/ops/lucide.css', import.meta.url) }],
+  ['lucide.woff2', { type: 'font/woff2', url: new URL('../public/ops/lucide.woff2', import.meta.url) }],
+  ['favicon.png', { type: 'image/png', url: new URL('../public/ops/favicon.png', import.meta.url) }],
+]);
+
+function sendOpsAsset(res, name) {
+  const asset = OPS_ASSETS.get(name);
+  if (!asset) return false;
+  asset.body = asset.body || fs.readFileSync(asset.url);
+  res.set('Cache-Control', config.isProduction ? 'public, max-age=3600' : 'no-cache');
+  res.type(asset.type).send(asset.body);
+  return true;
+}
+
+app.get('/ops-assets/:asset', (req, res, next) => {
+  if (!sendOpsAsset(res, req.params.asset)) return next();
+  return undefined;
+});
+app.get('/', (_req, res) => sendOpsAsset(res, 'ops.html'));
 app.get('/console', (_req, res) => res.redirect('/'));
 app.get('/health', (_req, res) => res.redirect('/api/health'));
 
