@@ -9,11 +9,17 @@ const bdPhone = (chain) => chain
   .withMessage('validation.phone');
 
 const validateRoleExists = async (value) => {
+  // Allow system roles without checking Role collection
+  const systemRoles = ['super_admin', 'president', 'general_secretary', 'treasurer', 'member'];
+  if (systemRoles.includes(value)) {
+    if (value === ROLES.SUPER_ADMIN) {
+      throw new Error('validation.enum');
+    }
+    return true;
+  }
+  // For custom roles, check if they exist in Role collection
   const role = await Role.findOne({ name: value });
   if (!role) {
-    throw new Error('validation.enum');
-  }
-  if (value === ROLES.SUPER_ADMIN) {
     throw new Error('validation.enum');
   }
   return true;

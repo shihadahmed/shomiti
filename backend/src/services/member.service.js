@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Member from '../models/Member.js';
 import User from '../models/User.js';
+import Role from '../models/Role.js';
 import SavingsAccount from '../models/SavingsAccount.js';
 import SavingsTransaction from '../models/SavingsTransaction.js';
 import ApiError from '../utils/ApiError.js';
@@ -11,7 +12,7 @@ import { hashPassword, createSetupToken } from '../utils/password.js';
 import * as emailService from './email.service.js';
 import { uploadToCloudinary } from '../middleware/upload.js';
 import crypto from 'node:crypto';
-import { MEMBER_STATUS, SAVINGS_ACCOUNT_TYPES, ROLES, USER_STATUS } from '../config/constants.js';
+import { MEMBER_STATUS, SAVINGS_ACCOUNT_TYPES, ROLES, USER_STATUS, EXECUTIVE_ROLES } from '../config/constants.js';
 
 const EDITABLE_FIELDS = [
   'fullName',
@@ -152,7 +153,7 @@ export async function createMember(payload, actor, req) {
         { session },
       );
 
-      const [account] = await SavingsAccount.create(
+const [account] = await SavingsAccount.create(
         [
           {
             accountNo,
@@ -164,46 +165,60 @@ export async function createMember(payload, actor, req) {
         { session },
       );
 
-      // Create User account for member portal access if email is provided
+      // Create User account for member portal access (always create, use phone if no email)
       let user = null;
       let inviteToken = null;
 
-      if (payload.email) {
-        // Check if user already exists with this email or phone
-        const existingUser = await User.findOne({
-          $or: [{ email: payload.email.toLowerCase() }, { phone: payload.phone }],
-        }).session(session);
+      // Check if user already exists with this email or phone
+      const existingUser = await User.findOne({
+        $or: [
+          { email: payload.email?.toLowerCase() },
+          { phone: payload.phone },
+        ],
+      }).session(session);
 
-        if (!existingUser) {
-          const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
-          const placeholderPassword = await hashPassword(crypto.randomBytes(32).toString('hex'));
+      if (!existingUser) {
+        const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
+        const placeholderPassword = await hashPassword(crypto.randomBytes(32).toString('hex'));
 
-          // `Model.create([doc])` resolves to an array — destructure it, otherwise
-          // `user.email` / `user.name` are undefined and the invite never sends.
-          const [createdUser] = await User.create(
-            [
-              {
-                name: payload.fullName,
-                email: payload.email.toLowerCase(),
-                phone: payload.phone,
-                nid: payload.nid,
-                role: ROLES.MEMBER,
-                memberId: member._id,
-                passwordHash: placeholderPassword,
-                resetPasswordToken: tokenHash,
-                resetPasswordExpires: tokenExpires,
-                mustChangePassword: true,
-                status: USER_STATUS.INVITED,
-              },
-            ],
-            { session },
-          );
+        // Use role from payload or default to 'member'
+        const memberRole = payload.role || 'member';
 
-          user = createdUser;
-          inviteToken = rawToken;
-          
-          // Update member with userId
-          member.userId = user._id;
+        // `Model.create([doc])` resolves to an array — destructure it, otherwise
+        // `user.email` / `user.name` are undefined and the invite never sends.
+        const [createdUser] = await User.create(
+          [
+            {
+              name: payload.fullName,
+              email: payload.email?.toLowerCase() || undefined,
+              phone: payload.phone,
+              nid: payload.nid,
+              role: memberRole,
+              memberId: member._id,
+              passwordHash: placeholderPassword,
+              resetPasswordToken: tokenHash,
+              resetPasswordExpires: tokenExpires,
+              mustChangePassword: true,
+              status: USER_STATUS.INVITED,
+            },
+          ],
+          { session },
+        );
+
+        user = createdUser;
+        inviteToken = rawToken;
+
+        // Update member with userId (bi-directional linking)
+        member.userId = user._id;
+        await member.save({ session });
+      } else {
+        // Link existing user to this member if not already linked
+        if (!existingUser.memberId || !existingUser.memberId.equals(member._id)) {
+          existingUser.memberId = member._id;
+          await existingUser.save({ session });
+        }
+        if (!member.userId || !member.userId.equals(existingUser._id)) {
+          member.userId = existingUser._id;
           await member.save({ session });
         }
       }
@@ -229,7 +244,7 @@ export async function createMember(payload, actor, req) {
   // back a member that was created successfully.
   let emailSent = false;
 
-  if (outcome.user && outcome.inviteToken) {
+  if (outcome.user && outcome.inviteToken && outcome.user.email) {
     try {
       await emailService.sendInviteEmail({
         to: outcome.user.email,
@@ -470,6 +485,57 @@ export async function getMemberOptions(query = {}) {
     .limit(50);
 }
 
+export async function updateMemberRole(id, newRole, actor, req) {
+  assertObjectId(id);
+  const member = await Member.findById(id);
+  if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
+
+  // Check if member has a linked user
+  if (!member.userId) {
+    throw ApiError.badRequest('Member does not have a linked user account.', 'NO_USER_ACCOUNT');
+  }
+
+  // Prevent self-role-change
+  if (actor._id.toString() === member.userId.toString()) {
+    throw ApiError.badRequest('You cannot change your own role.', 'SELF_DEMOTION_FORBIDDEN');
+  }
+
+  const user = await User.findById(member.userId);
+  if (!user) {
+    throw ApiError.notFound('Linked user account not found.', 'USER_NOT_FOUND');
+  }
+
+  // Only super_admin can assign executive roles
+  if (EXECUTIVE_ROLES.includes(newRole) && actor.role !== ROLES.SUPER_ADMIN) {
+    throw ApiError.forbidden('Only Super Admin can assign executive roles.', 'EXECUTIVE_ROLE_RESTRICTED');
+  }
+
+  // Validate role exists in Role collection (unless it's a system role)
+  const systemRoles = ['super_admin', 'president', 'general_secretary', 'treasurer', 'member'];
+  if (!systemRoles.includes(newRole)) {
+    const roleExists = await Role.findOne({ name: newRole });
+    if (!roleExists) {
+      throw ApiError.badRequest('Role does not exist.', 'ROLE_NOT_FOUND');
+    }
+  }
+
+  const oldRole = user.role;
+  user.role = newRole;
+  await user.save();
+
+  await writeAudit({
+    actor: actor._id,
+    action: 'member.role_changed',
+    entityType: 'Member',
+    entityId: member._id,
+    before: { role: oldRole },
+    after: { role: newRole },
+    req,
+  });
+
+  return { member: member.toJSON(), user: user.toJSON() };
+}
+
 export default {
   createMember,
   listMembers,
@@ -480,4 +546,5 @@ export default {
   deactivateMember,
   getMemberTransactions,
   getMemberOptions,
+  updateMemberRole,
 };

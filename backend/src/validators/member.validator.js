@@ -1,5 +1,6 @@
 import { body, param, query } from 'express-validator';
-import { MEMBER_STATUS_VALUES } from '../config/constants.js';
+import { MEMBER_STATUS_VALUES, ROLES } from '../config/constants.js';
+import Role from '../models/Role.js';
 
 const bdPhone = (chain) => chain
   .customSanitizer((value) => String(value || '').replace(/^\+?880/, '0').replace(/[\s-]/g, ''))
@@ -13,6 +14,17 @@ const optionalText = (chain, max = 160) => chain
   .withMessage('validation.maxLength');
 
 const NID_PATTERN = /^\d{10}$|^\d{13}$|^\d{17}$/;
+
+const validateRoleExists = async (value) => {
+  const role = await Role.findOne({ name: value });
+  if (!role) {
+    throw new Error('validation.enum');
+  }
+  if (value === ROLES.SUPER_ADMIN) {
+    throw new Error('validation.enum');
+  }
+  return true;
+};
 
 /**
  * Addresses arrive either as free text (current registration form) or as the
@@ -119,3 +131,11 @@ export const listMemberRules = [
 ];
 
 export const memberIdParam = [param('id').isMongoId().withMessage('validation.identifier')];
+
+export const updateMemberRoleRules = [
+  param('id').isMongoId().withMessage('validation.identifier'),
+  body('role')
+    .notEmpty().withMessage('validation.required')
+    .custom(validateRoleExists)
+    .withMessage('validation.enum'),
+];

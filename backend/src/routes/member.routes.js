@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
-import { requireRoles, requireStaff } from '../middleware/authorize.js';
+import { requireRoles, requireStaff, requirePermission } from '../middleware/authorize.js';
 import { validate } from '../middleware/validate.js';
 import { uploadSingle } from '../middleware/upload.js';
 import { ROLES } from '../config/constants.js';
@@ -9,6 +9,7 @@ import {
   updateMemberRules,
   listMemberRules,
   memberIdParam,
+  updateMemberRoleRules,
 } from '../validators/member.validator.js';
 import * as memberController from '../controllers/member.controller.js';
 
@@ -43,6 +44,14 @@ router.patch(
   updateMemberRules,
   validate,
   memberController.updateMember,
+);
+// Role assignment for member
+router.patch(
+  '/:id/role',
+  requireRoles(ROLES.SUPER_ADMIN, ROLES.TREASURER, ROLES.GENERAL_SECRETARY),
+  updateMemberRoleRules,
+  validate,
+  memberController.updateMemberRole,
 );
 router.delete(
   '/:id',

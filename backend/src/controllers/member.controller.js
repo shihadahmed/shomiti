@@ -60,6 +60,13 @@ export const downloadPhoto = asyncHandler(async (req, res) => {
   return res.redirect(photo.url);
 });
 
+/** PATCH /api/members/:id/role — assign or change member's role */
+export const updateMemberRole = asyncHandler(async (req, res) => {
+  const { role } = req.body;
+  const result = await memberService.updateMemberRole(req.params.id, role, req.user, req);
+  res.json({ success: true, data: result, message: 'Member role updated successfully.' });
+});
+
 export default {
   listMembers,
   memberOptions,
@@ -70,4 +77,5 @@ export default {
   getMemberTransactions,
   uploadPhoto,
   downloadPhoto,
+  updateMemberRole,
 };
