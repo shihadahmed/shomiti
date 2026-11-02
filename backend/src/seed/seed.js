@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import config from '../config/env.js';
 import { connectDB, disconnectDB } from '../config/db.js';
 import User from '../models/User.js';
+import Member from '../models/Member.js';
 import SavingsScheme from '../models/SavingsScheme.js';
 import { ensureChartOfAccounts } from '../services/ledger.service.js';
 import { hashPassword } from '../utils/password.js';
@@ -75,6 +76,9 @@ async function seed() {
   await ensureChartOfAccounts();
   console.info('[seed] chart of accounts ready');
 
+  // Ensure memberId is not required for system users (they may not be cooperative members)
+  // System users are created without memberId and can be linked to members later if needed
+
   for (const userData of DEFAULT_USERS) {
     const existing = await User.findOne({ email: userData.email });
     if (!existing) {
@@ -84,6 +88,8 @@ async function seed() {
         phone: userData.phone,
         role: userData.role,
         passwordHash: await hashPassword(userData.password),
+        status: 'active',
+        mustChangePassword: false,
       });
       console.info(`[seed] ${userData.role} created: ${userData.email}`);
     } else {
