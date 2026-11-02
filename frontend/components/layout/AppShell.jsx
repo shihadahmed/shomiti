@@ -3,8 +3,7 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { apiClient } from '@/lib/api';
@@ -404,21 +403,6 @@ export default function AppShell({ children }) {
         onChanged={(nextUser) => setUser(nextUser)}
       />
 
-      <ToastContainer
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#ffffff',
-            color: '#2D151B',
-            border: '1px solid #E8D3A7',
-            borderRadius: '14px',
-            fontSize: '13px',
-            boxShadow: '0 10px 25px -5px rgba(107, 29, 47, 0.1)',
-          },
-          success: { iconTheme: { primary: '#059669', secondary: '#fff' } },
-          error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
-        }}
-      />
     </div>
   );
 }
