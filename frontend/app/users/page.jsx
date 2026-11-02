@@ -34,7 +34,7 @@ export default function UsersPage() {
 
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [userForm, setUserForm] = useState({ role: '', isActive: true, name: '', email: '', phone: '', password: '' });
+  const [userForm, setUserForm] = useState({ role: '', isActive: true, memberId: '' });
   const [userErrors, setUserErrors] = useState({});
   const [userSubmitting, setUserSubmitting] = useState(false);
 
@@ -42,6 +42,13 @@ export default function UsersPage() {
   const { data: rolesApiData } = useApi(
     '/roles',
     { limit: 100 },
+    { enabled: isAuthenticated && isExecutive }
+  );
+
+  // Fetch members without user accounts for the member selector
+  const { data: membersApiData } = useApi(
+    '/members',
+    { limit: 200, hasUser: 'false' },
     { enabled: isAuthenticated && isExecutive }
   );
 
@@ -55,6 +62,20 @@ export default function UsersPage() {
       label: r.name === 'super_admin' ? 'Super Admin' : r.name.replace(/_/g, ' ').toUpperCase(),
     }));
   }, [rolesApiData]);
+
+  // Member options for user creation
+  const memberOptions = useMemo(() => {
+    const members = membersApiData?.items || [];
+    return members
+      .filter(m => !m.userId)
+      .map(m => ({
+        _id: m._id,
+        code: m.code,
+        fullName: m.fullName,
+        phone: m.phone,
+        email: m.email,
+      }));
+  }, [membersApiData]);
 
   // Form-e default role set kora jodi faka thake
   useEffect(() => {
@@ -113,10 +134,7 @@ export default function UsersPage() {
     setUserForm({
       role: roleOptions[0]?.value || 'member',
       isActive: true,
-      name: '',
-      email: '',
-      phone: '',
-      nid: '',
+      memberId: '',
     });
     setUserErrors({});
     setShowUserModal(true);
@@ -128,7 +146,7 @@ export default function UsersPage() {
       return;
     }
     setEditingUser(user);
-    setUserForm({ role: user.role, isActive: user.isActive });
+    setUserForm({ role: user.role, isActive: user.isActive, memberId: user.memberId?._id || user.memberId || '' });
     setUserErrors({});
     setShowUserModal(true);
   };
@@ -413,6 +431,7 @@ export default function UsersPage() {
           onSubmit={handleUserSubmit}
           currentUserId={currentUser?._id}
           roleOptions={roleOptions}
+          memberOptions={memberOptions}
           tr={tr}
         />
       </div>
