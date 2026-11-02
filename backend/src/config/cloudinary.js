@@ -1,9 +1,34 @@
 import config from './env.js';
 import { v2 as cloudinary } from 'cloudinary';
 
-const cloudName = (config.cloudinary.cloudName || '').trim();
-const apiKey = (config.cloudinary.apiKey || '').trim();
-const apiSecret = (config.cloudinary.apiSecret || '').trim();
+/** Parse Cloudinary's dashboard "API environment variable" (cloudinary://key:secret@cloud). */
+function parseCloudinaryUrl(value) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'cloudinary:') return null;
+    return {
+      cloudName: decodeURIComponent(parsed.hostname),
+      apiKey: decodeURIComponent(parsed.username),
+      apiSecret: decodeURIComponent(parsed.password),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const envUrl = (process.env.CLOUDINARY_URL || '').trim();
+const fromUrl = envUrl ? parseCloudinaryUrl(envUrl) : null;
+
+if (envUrl && !fromUrl) {
+  console.error(
+    '[cloudinary] Invalid CLOUDINARY_URL. It must look like ' +
+      'cloudinary://<api_key>:<api_secret>@<cloud_name>',
+  );
+}
+
+const cloudName = (fromUrl?.cloudName || config.cloudinary.cloudName || '').trim();
+const apiKey = (fromUrl?.apiKey || config.cloudinary.apiKey || '').trim();
+const apiSecret = (fromUrl?.apiSecret || config.cloudinary.apiSecret || '').trim();
 
 // Cloudinary cloud names may only contain letters, numbers and hyphens
 // (https://cloudinary.com/documentation/ts_permitted_naming_conventions).

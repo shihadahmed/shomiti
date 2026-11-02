@@ -15,7 +15,7 @@ const ALLOWED_MIME_TYPES = new Set([
 ]);
 
 /** Single source of truth for the upload size ceiling (client must stay under this). */
-export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+export const MAX_FILE_SIZE = config.maxUploadBytes;
 
 const fileFilter = (_req, file, cb) => {
   if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {

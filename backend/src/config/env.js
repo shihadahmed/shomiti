@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-/** Absolute path to the backend package root (contains .env and uploads/). */
+/** Absolute path to the backend package root (contains .env). */
 export const backendRoot = path.resolve(here, '../..');
 
 dotenv.config({ path: path.join(backendRoot, '.env'), quiet: true });
@@ -119,7 +119,6 @@ const config = {
     inviteTtlHours: int(process.env.INVITE_TOKEN_TTL_HOURS, 24),
   },
   serveFrontend: bool(process.env.SERVE_FRONTEND, isLocal),
-  uploadDir: path.resolve(backendRoot, process.env.UPLOAD_DIR || 'uploads'),
   maxUploadBytes: int(process.env.MAX_UPLOAD_BYTES, 5 * 1024 * 1024),
   approvalThresholdPaisa: int(process.env.APPROVAL_THRESHOLD_TAKA, 10000) * 100,
   bcryptRounds: int(process.env.BCRYPT_ROUNDS, 12),

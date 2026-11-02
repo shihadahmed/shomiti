@@ -18,9 +18,6 @@ npm-debug.log*
 dist/
 build/
 
-# Uploads (runtime generated)
-uploads/
-
 # IDE
 .vscode/
 .idea/

@@ -1115,7 +1115,7 @@ Gates (must pass to merge):
 | `NEXT_PUBLIC_PAYMENT_GATEWAY` | no | `sslcommerz` |
 | `SENTRY_DSN` | no | — |
 
-`backend` keeps its existing configuration surface (`MONGODB_URI`, `JWT_SECRET`, `CLIENT_ORIGIN`, `UPLOAD_DIR`, `APPROVAL_THRESHOLD_TAKA`, `BCRYPT_ROUNDS`, seed variables) with `CLIENT_ORIGIN` updated to the new hosts.
+`backend` keeps its existing configuration surface (`MONGODB_URI`, `JWT_SECRET`, `CLIENT_ORIGIN`, `APPROVAL_THRESHOLD_TAKA`, `BCRYPT_ROUNDS`, `CLOUDINARY_*`, seed variables) with `CLIENT_ORIGIN` updated to the new hosts.
 
 ### 24.4 Proxy
 

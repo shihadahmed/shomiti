@@ -11,7 +11,7 @@ REST API for the Shopnonir Somobai Somitee cooperative management system. Built 
 - bcryptjs password hashing
 - express-validator request validation
 - helmet, cors, express-rate-limit, morgan
-- multer file uploads
+- Cloudinary file uploads (multer memory storage)
 - nodemailer (invite emails; JSON transport in local development)
 - Tests: node:test, supertest, mongodb-memory-server
 
@@ -45,8 +45,7 @@ backend/
 │   ├── validators/            # express-validator rule sets
 │   └── seed/                  # standalone seed script
 ├── public/ops/                # operations console served at the backend root
-├── tests/                     # integration tests
-└── uploads/                   # uploaded documents (runtime, gitignored)
+└── tests/                     # integration tests
 ```
 
 ## Setup
@@ -77,8 +76,9 @@ Full configuration reference:
 | `PORT` | `4000` | HTTP port |
 | `CLIENT_ORIGIN` | `http://localhost:3000,http://localhost:5173` | Comma-separated CORS allowlist |
 | `FRONTEND_URL` | `http://localhost:3000` | Used in invite/reset links |
-| `UPLOAD_DIR` | `uploads` | Upload directory (relative to backend root) |
 | `MAX_UPLOAD_BYTES` | `5242880` | Maximum upload size (5 MB) |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | — | Cloudinary credentials (all file uploads) |
+| `CLOUDINARY_URL` | — | Alternative single-line Cloudinary config from the dashboard |
 | `APPROVAL_THRESHOLD_TAKA` | `10000` | Amount above which approvals are required |
 | `BCRYPT_ROUNDS` | `12` | Password hash cost |
 | `SERVE_FRONTEND` | `true` | Serve static files from the sibling `frontend/` directory (legacy static build; the Next.js app runs separately) |

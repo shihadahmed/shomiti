@@ -36,7 +36,6 @@ router.get('/debug', (_req, res) => {
       corsOrigins: config.corsOrigins,
       frontendUrl: config.frontendUrl,
       serveFrontend: config.serveFrontend,
-      uploadDir: config.uploadDir,
       maxUploadBytes: config.maxUploadBytes,
       hasMongoUri: !!config.mongoUri,
       mongoUriPreview: config.mongoUri ? config.mongoUri.substring(0, 20) + '...' : 'NOT SET',
