@@ -57,6 +57,7 @@ before(async () => {
     role: 'super_admin',
     passwordHash: await hashPassword('Admin@12345'),
     isActive: true,
+    memberId: new mongoose.Types.ObjectId(),
   });
 
   adminToken = signAccessToken(admin);
@@ -68,30 +69,43 @@ after(async () => {
 });
 
 describe('User invite and password setup workflow', () => {
+  let testMember;
+
+  before(async () => {
+    testMember = await Member.create({
+      code: 'SOM-TEST-001',
+      fullName: 'Test Member',
+      nid: '1111111111',
+      phone: '01799999999',
+      email: 'testmember@test.local',
+      presentAddress: { fullAddress: 'Test Address' },
+      nominees: [{ name: 'Nominee', relation: 'spouse', nid: '2222222222', percentage: 100 }],
+      status: 'active',
+    });
+  });
+
   test('POST /api/auth/users creates an invited account and emails a setup link', async () => {
     const res = await asAdmin(request(app).post('/api/auth/users')).send({
-      name: 'Invited Staff',
-      email: 'invited@test.local',
-      phone: '01711111111',
-      nid: '1234567890',
+      memberId: testMember._id.toString(),
       role: 'treasurer',
     });
 
     assert.equal(res.status, 201);
     assert.equal(res.body.data.emailSent, true);
 
-    const user = await User.findOne({ email: 'invited@test.local' }).select('+resetPasswordToken');
+    const user = await User.findOne({ memberId: testMember._id }).select('+resetPasswordToken');
     assert.equal(user.status, 'invited');
     assert.equal(user.mustChangePassword, true);
     assert.ok(user.resetPasswordToken, 'only the hashed setup token is stored');
+    assert.equal(user.memberId.toString(), testMember._id.toString());
 
-    const mail = testOutbox.find((entry) => entry.to === 'invited@test.local');
+    const mail = testOutbox.find((entry) => entry.to === testMember.email);
     assert.ok(mail, 'invite email captured by the test outbox');
     assert.match(mail.text, /\/reset-password\?token=[a-f0-9]{64}/);
   });
 
   test('setup-password consumes the token and moves the account to pending_kyc', async () => {
-    const mail = testOutbox.find((entry) => entry.to === 'invited@test.local');
+    const mail = testOutbox.find((entry) => entry.to === testMember.email);
     const token = mail.text.match(/token=([a-f0-9]{64})/)[1];
 
     const res = await request(app)
@@ -102,7 +116,7 @@ describe('User invite and password setup workflow', () => {
     assert.equal(res.status, 200);
     assert.equal(res.body.data.user.status, 'pending_kyc');
 
-    const user = await User.findOne({ email: 'invited@test.local' })
+    const user = await User.findOne({ memberId: testMember._id })
       .select('+resetPasswordToken +passwordHash');
     assert.equal(user.resetPasswordToken, undefined);
     assert.equal(user.mustChangePassword, false);
@@ -113,7 +127,7 @@ describe('User invite and password setup workflow', () => {
     const res = await request(app)
       .post('/api/auth/login')
       .set('X-Requested-With', 'XMLHttpRequest')
-      .send({ identifier: 'invited@test.local', password: 'Member@12345' });
+      .send({ identifier: testMember.email, password: 'Member@12345' });
 
     assert.equal(res.status, 200);
     assert.ok(res.body.data.token);
