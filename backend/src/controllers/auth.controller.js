@@ -16,12 +16,7 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie(config.jwt.cookieName, {
-    httpOnly: true,
-    secure: config.isProduction,
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.clearCookie(config.jwt.cookieName, cookieOptions());
   res.json({ success: true, data: { message: 'Signed out.' } });
 });
 

@@ -75,6 +75,18 @@ const { isLocal, isProduction, source } = detectEnvironment();
 /** Human-readable mode label for logging */
 const modeLabel = isProduction ? 'LIVE / ONLINE PRODUCTION' : 'LOCAL / DEVELOPMENT';
 
+/**
+ * Parse a comma-separated origin list. Trailing slashes are stripped because
+ * browser `Origin` headers never include them ("https://app.vercel.app/" in an
+ * env var would otherwise never match).
+ */
+function parseOrigins(value = '') {
+  return value
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+}
+
 const config = {
   nodeEnv: isProduction ? 'production' : 'development',
   isLocal,
@@ -88,10 +100,12 @@ const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '8h',
     cookieName: process.env.COOKIE_NAME || 'sn_token',
   },
-  corsOrigins: (process.env.CLIENT_ORIGIN || (isLocal ? 'http://localhost:3000,http://localhost:5173' : ''))
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
+  corsOrigins: [
+    ...new Set([
+      ...parseOrigins(process.env.CLIENT_ORIGIN || (isLocal ? 'http://localhost:3000,http://localhost:5173' : '')),
+      ...parseOrigins(process.env.FRONTEND_URL || ''),
+    ]),
+  ],
   frontendUrl: process.env.FRONTEND_URL || (isLocal ? 'http://localhost:3000' : ''),
   mail: {
     enabled: bool(process.env.MAIL_ENABLED, true),

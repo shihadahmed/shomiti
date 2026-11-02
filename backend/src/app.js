@@ -43,6 +43,9 @@ app.use(
   cors({
     origin(origin, callback) {
       if (!origin || config.corsOrigins.includes(origin)) return callback(null, true);
+      console.warn(
+        `[cors] blocked origin "${origin}". Allowed origins: ${config.corsOrigins.join(', ') || '(none configured)'}`,
+      );
       return callback(ApiError.forbidden('Origin is not allowed.', 'CORS_DENIED'));
     },
     credentials: true,

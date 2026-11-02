@@ -26,6 +26,8 @@ export function verifyAccessToken(token) {
 export const cookieOptions = () => ({
   httpOnly: true,
   secure: config.isProduction,
-  sameSite: 'lax',
+  // The live frontend and API run on different domains, so the session cookie
+  // must be allowed on cross-site requests. SameSite=None requires Secure.
+  sameSite: config.isProduction ? 'none' : 'lax',
   path: '/',
 });
