@@ -50,8 +50,8 @@ export default function MembersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   // Role assignment modal state
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -127,8 +127,7 @@ export default function MembersPage() {
   };
 
   const openAdd = () => {
-    setEditingMember(null);
-    setShowModal(true);
+    router.push('/members/add');
   };
 
   const openEdit = (member) => {
@@ -380,23 +379,25 @@ export default function MembersPage() {
         )}
       </div>
 
-      <Modal
-        isOpen={showModal}
-        onClose={closeModal}
-        title={editingMember ? (tr('members.editTitle') || 'Shodoshsho Tothyo Shompado') : (tr('members.newTitle') || 'Notun Shodoshsho Nibondhon')}
-        size="xl"
-      >
-        <div className="py-2">
-          <MemberRegistrationForm
-            initialData={editingMember}
-            onSuccess={() => {
-              closeModal();
-              reload();
-            }}
-            onCancel={closeModal}
-          />
-        </div>
-      </Modal>
+      {editingMember && (
+        <Modal
+          isOpen={showModal}
+          onClose={closeModal}
+          title={tr('members.editTitle') || 'Shodoshsho Tothyo Shompado'}
+          size="xl"
+        >
+          <div className="py-2">
+            <MemberRegistrationForm
+              initialData={editingMember}
+              onSuccess={() => {
+                closeModal();
+                reload();
+              }}
+              onCancel={closeModal}
+            />
+          </div>
+        </Modal>
+      )}
 
       {/* Role Assignment Modal */}
       <Modal
