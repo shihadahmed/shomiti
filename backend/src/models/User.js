@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { ROLE_VALUES, ROLES, USER_STATUS } from '../config/constants.js';
+import { ROLES, USER_STATUS } from '../config/constants.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -16,8 +16,8 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, required: true, unique: true, trim: true },
     nid: { type: String, trim: true, unique: true, sparse: true, index: true },
     passwordHash: { type: String, required: true, select: false },
-    role: { type: String, enum: ROLE_VALUES, default: ROLES.MEMBER, index: true },
-    member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', default: null },
+    role: { type: String, default: ROLES.MEMBER, index: true },
+    memberId: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true, unique: true, index: true },
     isActive: { type: Boolean, default: true },
     status: {
       type: String,

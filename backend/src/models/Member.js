@@ -54,6 +54,7 @@ const memberSchema = new mongoose.Schema(
     nominees: { type: [nomineeSchema], default: [] },
     notes: { type: String, maxlength: 1000 },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, sparse: true },
   },
   {
     timestamps: true,
