@@ -115,6 +115,7 @@ export const listMemberRules = [
   query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
   query('status').optional().isIn(MEMBER_STATUS_VALUES).withMessage('validation.enum'),
   query('search').optional().trim(),
+  query('hasUser').optional().isIn(['true', 'false']),
 ];
 
 export const memberIdParam = [param('id').isMongoId().withMessage('validation.identifier')];

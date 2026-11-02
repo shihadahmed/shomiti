@@ -1,10 +1,35 @@
 import { body, param, query } from 'express-validator';
-import { ROLES, ROLE_VALUES } from '../config/constants.js';
+import { ROLES } from '../config/constants.js';
+import Role from '../models/Role.js';
+import Member from '../models/Member.js';
 
 const bdPhone = (chain) => chain
   .customSanitizer((value) => String(value || '').replace(/^\+?880/, '0').replace(/[\s-]/g, ''))
   .matches(/^01[3-9]\d{8}$/)
   .withMessage('validation.phone');
+
+const validateRoleExists = async (value) => {
+  const role = await Role.findOne({ name: value });
+  if (!role) {
+    throw new Error('validation.enum');
+  }
+  if (value === ROLES.SUPER_ADMIN) {
+    throw new Error('validation.enum');
+  }
+  return true;
+};
+
+const validateMemberExists = async (value, { req }) => {
+  const member = await Member.findById(value);
+  if (!member) {
+    throw new Error('validation.memberNotFound');
+  }
+  if (member.userId) {
+    throw new Error('validation.memberHasUser');
+  }
+  req.memberData = member;
+  return true;
+};
 
 export const loginRules = [
   body('identifier').trim().notEmpty().withMessage('validation.required'),
@@ -22,26 +47,20 @@ export const changePasswordRules = [
 ];
 
 export const createStaffRules = [
-  body('name').trim().notEmpty().withMessage('validation.required').isLength({ max: 120 }),
-  body('email').trim().notEmpty().withMessage('validation.required').isEmail().withMessage('validation.email'),
-  bdPhone(body('phone').notEmpty().withMessage('validation.required')),
-  body('nid')
-    .trim()
-    .notEmpty()
-    .withMessage('validation.required')
-    .matches(/^\d{10}$|^\d{13}$|^\d{17}$/)
-    .withMessage('validation.nid'),
+  body('memberId')
+    .notEmpty().withMessage('validation.required')
+    .isMongoId().withMessage('validation.identifier')
+    .custom(validateMemberExists),
   body('role')
-    .isIn(ROLE_VALUES.filter((role) => role !== ROLES.SUPER_ADMIN))
+    .custom(validateRoleExists)
     .withMessage('validation.enum'),
   body('password').optional({ values: 'falsy' }),
-  body('memberId').optional({ values: 'falsy' }).isMongoId().withMessage('validation.identifier'),
 ];
 
 export const updateUserRoleRules = [
   param('id').isMongoId().withMessage('validation.identifier'),
   body('role')
-    .isIn(ROLE_VALUES.filter((role) => role !== ROLES.SUPER_ADMIN))
+    .custom(validateRoleExists)
     .withMessage('validation.enum'),
 ];
 
@@ -76,7 +95,7 @@ export const setupPasswordRules = [
 export const listUsersQueryRules = [
   query('page').optional().isInt({ min: 1 }).toInt(),
   query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
-  query('role').optional().isIn(ROLE_VALUES),
+  query('role').optional().custom(validateRoleExists),
   query('status').optional().isIn(['active', 'inactive', 'suspended', 'resigned', 'archived']),
   query('search').optional().trim().isLength({ max: 100 }),
 ];
