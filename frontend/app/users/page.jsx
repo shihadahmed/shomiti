@@ -4,9 +4,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi, apiPatch, apiPost, apiDelete } from '@/lib/useApi';
+import { useApi, apiPatch } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
-import UserEditModal from '@/components/ui/UserEditModal';
 import {
   Icon, Button, Select, PageHeader, EmptyState, LoadingSpinner,
   Badge, Table, TableHeader, TableBody, TableRow, TableCell,
@@ -34,7 +33,7 @@ export default function UsersPage() {
 
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [userForm, setUserForm] = useState({ role: '', isActive: true, memberId: '' });
+  const [userForm, setUserForm] = useState({ role: '', isActive: true });
   const [userErrors, setUserErrors] = useState({});
   const [userSubmitting, setUserSubmitting] = useState(false);
 
@@ -42,13 +41,6 @@ export default function UsersPage() {
   const { data: rolesApiData } = useApi(
     '/roles',
     { limit: 100 },
-    { enabled: isAuthenticated && isExecutive }
-  );
-
-  // Fetch members without user accounts for the member selector
-  const { data: membersApiData } = useApi(
-    '/members',
-    { limit: 200, hasUser: 'false' },
     { enabled: isAuthenticated && isExecutive }
   );
 
@@ -62,27 +54,6 @@ export default function UsersPage() {
       label: r.name === 'super_admin' ? 'Super Admin' : r.name.replace(/_/g, ' ').toUpperCase(),
     }));
   }, [rolesApiData]);
-
-  // Member options for user creation
-  const memberOptions = useMemo(() => {
-    const members = membersApiData?.items || [];
-    return members
-      .filter(m => !m.userId)
-      .map(m => ({
-        _id: m._id,
-        code: m.code,
-        fullName: m.fullName,
-        phone: m.phone,
-        email: m.email,
-      }));
-  }, [membersApiData]);
-
-  // Form-e default role set kora jodi faka thake
-  useEffect(() => {
-    if (!userForm.role && roleOptions.length > 0) {
-      setUserForm((prev) => ({ ...prev, role: roleOptions[0].value }));
-    }
-  }, [roleOptions, userForm.role]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -129,24 +100,13 @@ export default function UsersPage() {
   const userMeta = userData?.meta || { total: 0, pages: 1 };
   const metrics = metricsData || { totalUsers: 0, executiveLeaders: 0, activeMembers: 0, inactiveAccounts: 0 };
 
-  const openAddUser = () => {
-    setEditingUser(null);
-    setUserForm({
-      role: roleOptions[0]?.value || 'member',
-      isActive: true,
-      memberId: '',
-    });
-    setUserErrors({});
-    setShowUserModal(true);
-  };
-
   const openEditUser = (user) => {
     if (user._id === currentUser?._id) {
       toast.error(tr('users.cannotEditSelf'));
       return;
     }
     setEditingUser(user);
-    setUserForm({ role: user.role, isActive: user.isActive, memberId: user.memberId?._id || user.memberId || '' });
+    setUserForm({ role: user.role, isActive: user.isActive });
     setUserErrors({});
     setShowUserModal(true);
   };
@@ -164,13 +124,6 @@ export default function UsersPage() {
         if (userForm.isActive !== editingUser.isActive) {
           await apiPatch(`/auth/users/${editingUser._id}/status`, { isActive: userForm.isActive });
           toast.success(tr('users.statusUpdated'));
-        }
-      } else {
-        const res = await apiPost('/auth/users', userForm);
-        if (res?.data?.emailSent) {
-          toast.success(tr('users.inviteSent'));
-        } else {
-          toast.success(tr('users.created'));
         }
       }
       setShowUserModal(false);
@@ -262,12 +215,6 @@ export default function UsersPage() {
                   </button>
                 )}
               </div>
-              {isSuperAdmin && (
-                <Button variant="primary" onClick={openAddUser}>
-                  <Icon name="plus" className="h-4 w-4" />
-                  {tr('users.add')}
-                </Button>
-              )}
             </div>
           }
         />
@@ -419,21 +366,56 @@ export default function UsersPage() {
           <Pagination meta={userMeta} onPage={setUserPage} />
         </div>
 
-        {/* Dynamic roleOptions pass kora hoyeche */}
-        <UserEditModal
-          open={showUserModal}
-          onClose={() => setShowUserModal(false)}
-          user={editingUser}
-          form={userForm}
-          errors={userErrors}
-          onChange={setUserForm}
-          submitting={userSubmitting}
-          onSubmit={handleUserSubmit}
-          currentUserId={currentUser?._id}
-          roleOptions={roleOptions}
-          memberOptions={memberOptions}
-          tr={tr}
-        />
+        {/* User Edit Modal - only for editing existing users */}
+        {showUserModal && editingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden">
+              <div className="flex items-center justify-between border-b border-brand-200 p-4">
+                <h3 className="text-lg font-semibold text-brand-900">{tr('users.editUser')}</h3>
+                <button type="button" onClick={() => setShowUserModal(false)} className="text-brand-400 hover:text-brand-600">
+                  <Icon name="x" className="h-5 w-5" />
+                </button>
+              </div>
+              <form onSubmit={handleUserSubmit} className="p-4 space-y-4">
+                {errors?.submit && (
+                  <div className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700 flex items-center gap-2">
+                    <Icon name="alert" className="h-4 w-4" />
+                    {errors.submit}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Select
+                    label={tr('users.role')}
+                    value={userForm.role}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    options={roleOptions}
+                    required
+                  />
+                  <Select
+                    label={tr('users.status')}
+                    value={userForm.isActive ? 'active' : 'inactive'}
+                    onChange={(e) => setUserForm({ ...userForm, isActive: e.target.value === 'active' })}
+                    options={[
+                      { value: 'active', label: tr('users.statusActive') },
+                      { value: 'inactive', label: tr('users.statusInactive') },
+                    ]}
+                    disabled={editingUser._id === currentUser?._id}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-brand-200">
+                  <Button type="button" variant="secondary" onClick={() => setShowUserModal(false)}>
+                    {tr('common.cancel')}
+                  </Button>
+                  <Button type="submit" variant="primary" loading={userSubmitting}>
+                    {tr('common.save')}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </AppShell>
   );

@@ -180,6 +180,7 @@ const en = {
   'members.edit': 'Edit',
   'members.photo': 'Photo',
   'members.changePhoto': 'Change photo',
+  'members.changeRole': 'Change Role',
   'members.fullName': 'Full name (English)',
   'members.fullNameBn': 'Full name (Bengali)',
   'members.fatherName': "Father's name",
@@ -633,6 +634,7 @@ const en = {
   'toast.passwordChanged': 'Password changed.',
   'toast.loggedOut': 'Signed out.',
   'toast.loginSuccess': 'Welcome back!',
+  'toast.roleUpdated': 'Role updated successfully.',
 
   'error.network': 'Cannot reach the server. Check your connection.',
   'error.generic': 'Something went wrong. Please try again.',
@@ -1133,6 +1135,7 @@ const bn = {
   'members.edit': 'সম্পাদনা',
   'members.photo': 'ছবি',
   'members.changePhoto': 'ছবি পরিবর্তন',
+  'members.changeRole': 'রোল পরিবর্তন',
   'members.fullName': 'পূর্ণ নাম (ইংরেজি)',
   'members.fullNameBn': 'পূর্ণ নাম (বাংলা)',
   'members.fatherName': 'পিতার নাম',
@@ -1548,6 +1551,7 @@ const bn = {
   'toast.passwordChanged': 'পাসওয়ার্ড পরিবর্তন হয়েছে।',
   'toast.loggedOut': 'সাইন আউট হয়েছে।',
   'toast.loginSuccess': 'স্বাগতম! আবার সাইন ইন করেছেন।',
+  'toast.roleUpdated': 'রোল সফলভাবে আপডেট হয়েছে।',
 
   'error.network': 'সার্ভারে সংযোগ করা যাচ্ছে না। ইন্টারনেট সংযোগ দেখুন।',
   'error.generic': 'কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।',

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi, apiDelete } from '@/lib/useApi';
+import { useApi, apiDelete, apiPatch } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import SearchParamSync from '@/components/layout/SearchParamSync';
 import MemberRegistrationForm from '@/components/members/MemberRegistrationForm';
@@ -23,6 +23,7 @@ import {
   Pagination,
   SearchInput,
   Modal,
+  Dropdown,
 } from '@/components/ui/common';
 
 const STATUSES = [
@@ -39,6 +40,10 @@ export default function MembersPage() {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const canManageMembers = useAuthStore((state) => state.canManageMembers);
+  const hasRole = useAuthStore((state) => state.hasRole);
+
+  const isSuperAdmin = hasRole('super_admin');
+  const isExecutive = hasRole('super_admin', 'president', 'general_secretary', 'treasurer');
 
   const [mounted, setMounted] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -47,6 +52,29 @@ export default function MembersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+
+  // Role assignment modal state
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [roleMember, setRoleMember] = useState(null);
+  const [roleForm, setRoleForm] = useState({ role: '' });
+  const [roleSubmitting, setRoleSubmitting] = useState(false);
+  const [roleError, setRoleError] = useState(null);
+
+  // Fetch roles for role assignment
+  const { data: rolesApiData } = useApi(
+    '/roles',
+    { limit: 100 },
+    { enabled: isAuthenticated && isExecutive }
+  );
+
+  const roleOptions = useMemo(() => {
+    const dbRoles = rolesApiData?.items || [];
+    if (!dbRoles.length) return [];
+    return dbRoles.map((r) => ({
+      value: r.name,
+      label: r.name === 'super_admin' ? 'Super Admin' : r.name.replace(/_/g, ' ').toUpperCase(),
+    }));
+  }, [rolesApiData]);
 
   const queryParams = useMemo(() => ({
     page,
@@ -121,6 +149,30 @@ export default function MembersPage() {
       reload();
     } catch (requestError) {
       toast.error(requestError?.message || tr('error.generic'));
+    }
+  };
+
+  // Role assignment functions
+  const openRoleModal = (member) => {
+    setRoleMember(member);
+    setRoleForm({ role: member.user?.role || 'member' });
+    setRoleError(null);
+    setShowRoleModal(true);
+  };
+
+  const handleRoleSubmit = async (e) => {
+    e.preventDefault();
+    setRoleError(null);
+    setRoleSubmitting(true);
+    try {
+      await apiPatch(`/members/${roleMember._id}/role`, { role: roleForm.role });
+      toast.success(tr('toast.roleUpdated') || 'Member role updated successfully');
+      setShowRoleModal(false);
+      reload();
+    } catch (err) {
+      setRoleError(err?.message || tr('error.generic'));
+    } finally {
+      setRoleSubmitting(false);
     }
   };
 
@@ -276,26 +328,42 @@ export default function MembersPage() {
                               <Icon name="eye" className="h-4 w-4" />
                             </Link>
 
-                            {canManageMembers?.() && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => openEdit(member)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-brand-200 bg-white text-brand-600 transition hover:bg-brand-50 hover:text-brand-900"
-                                  title={tr('common.edit')}
-                                >
-                                  <Icon name="pencilLine" className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDelete(member._id)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50/50 text-rose-600 transition hover:bg-rose-100"
-                                  title={tr('common.delete')}
-                                >
-                                  <Icon name="trash" className="h-3.5 w-3.5" />
-                                </button>
-                              </>
-                            )}
+{canManageMembers?.() && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => openEdit(member)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-brand-200 bg-white text-brand-600 transition hover:bg-brand-50 hover:text-brand-900"
+                                    title={tr('common.edit')}
+                                  >
+                                    <Icon name="pencilLine" className="h-3.5 w-3.5" />
+                                  </button>
+                                  {isExecutive && member.userId && (
+                                    <Dropdown
+                                      trigger={
+                                        <button
+                                          type="button"
+                                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-brand-200 bg-white text-brand-600 transition hover:bg-brand-50 hover:text-brand-900"
+                                          title={tr('members.changeRole') || 'Change Role'}
+                                        >
+                                          <Icon name="userCog" className="h-3.5 w-3.5" />
+                                        </button>
+                                      }
+                                      items={[
+                                        { label: tr('members.changeRole'), onClick: () => openRoleModal(member), icon: 'userCog' },
+                                      ]}
+                                    />
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(member._id)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50/50 text-rose-600 transition hover:bg-rose-100"
+                                    title={tr('common.delete')}
+                                  >
+                                    <Icon name="trash" className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
+                              )}
                           </div>
                         </td>
                       </tr>
@@ -328,6 +396,44 @@ export default function MembersPage() {
             onCancel={closeModal}
           />
         </div>
+      </Modal>
+
+      {/* Role Assignment Modal */}
+      <Modal
+        isOpen={showRoleModal}
+        onClose={() => setShowRoleModal(false)}
+        title={tr('members.changeRole') || 'Change Member Role'}
+        size="md"
+      >
+        <form onSubmit={handleRoleSubmit} className="py-2 space-y-4">
+          {roleError && (
+            <div className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700 flex items-center gap-2">
+              <Icon name="alert" className="h-4 w-4" />
+              {roleError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-brand-800 mb-1.5">
+              {tr('users.role') || 'Role'}
+            </label>
+            <Select
+              value={roleForm.role}
+              onChange={(e) => setRoleForm({ ...roleForm, role: e.target.value })}
+              options={roleOptions}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-brand-200">
+            <Button type="button" variant="secondary" onClick={() => setShowRoleModal(false)}>
+              {tr('common.cancel')}
+            </Button>
+            <Button type="submit" variant="primary" loading={roleSubmitting}>
+              {tr('common.save')}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </AppShell>
   );
