@@ -30,6 +30,18 @@ export const setupPassword = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result });
 });
 
+export const requestPasswordReset = asyncHandler(async (req, res) => {
+  const { identifier } = req.body;
+  const result = await authService.requestPasswordReset(identifier, req);
+  res.json({ success: true, data: result });
+});
+
+export const resendPasswordResetEmail = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const result = await authService.resendPasswordResetEmail(id, req.user, req);
+  res.json({ success: true, data: result });
+});
+
 export const changePassword = asyncHandler(async (req, res) => {
   const { user, token } = await authService.changePassword(req.user, req.body, req);
   setSessionCookie(res, token);
