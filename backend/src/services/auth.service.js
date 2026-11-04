@@ -295,6 +295,92 @@ export async function resetUserPassword(userId, newPassword, actor, req) {
   };
 }
 
+export async function requestPasswordReset(identifier, req) {
+  const value = String(identifier || '').trim().toLowerCase();
+  const user = await User.findOne({
+    $or: [{ email: value }, { phone: value }],
+    isActive: true,
+  });
+
+  // Always return success to prevent user enumeration
+  if (!user || !user.email) {
+    return { emailSent: true };
+  }
+
+  const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
+
+  user.resetPasswordToken = tokenHash;
+  user.resetPasswordExpires = tokenExpires;
+  await user.save();
+
+  try {
+    await emailService.sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      token: rawToken,
+    });
+
+    await writeAudit({
+      actor: user._id,
+      action: 'user.password_reset_requested',
+      entityType: 'User',
+      entityId: user._id,
+      req,
+    });
+
+    return { emailSent: true };
+  } catch (error) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    throw new Error(`Failed to send password reset email: ${error.message}`);
+  }
+}
+
+export async function resendPasswordResetEmail(userId, actor, req) {
+  if (![ROLES.SUPER_ADMIN, ROLES.TREASURER, ROLES.GENERAL_SECRETARY, ROLES.PRESIDENT].includes(actor.role)) {
+    throw ApiError.forbidden('Only admins can resend password reset emails.', 'PASSWORD_RESET_RESEND_FORBIDDEN');
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw ApiError.notFound('User not found.', 'USER_NOT_FOUND');
+  }
+
+  if (!user.email) {
+    throw ApiError.badRequest('User has no email address on file.', 'NO_EMAIL_ON_FILE');
+  }
+
+  const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
+
+  user.resetPasswordToken = tokenHash;
+  user.resetPasswordExpires = tokenExpires;
+  await user.save();
+
+  try {
+    await emailService.sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      token: rawToken,
+    });
+
+    await writeAudit({
+      actor: actor._id,
+      action: 'user.password_reset_resent',
+      entityType: 'User',
+      entityId: user._id,
+      req,
+    });
+
+    return { emailSent: true };
+  } catch (error) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    throw new Error(`Failed to resend password reset email: ${error.message}`);
+  }
+}
+
 export async function setupPassword(token, newPassword, req) {
   const hashedToken = hashToken(token);
   
@@ -405,6 +491,8 @@ export default {
   updateUserStatus,
   resetUserPassword,
   setupPassword,
+  requestPasswordReset,
+  resendPasswordResetEmail,
   deleteUser,
   getUserMetrics,
 };
