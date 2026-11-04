@@ -81,6 +81,65 @@ export async function sendInviteEmail({ to, name, token }) {
   }
 }
 
+/**
+ * Sends a password reset email to an existing user.
+ * @param {Object} options - { to, name, token }
+ * @returns {Promise<Object>} - Result of the send operation
+ */
+export async function sendPasswordResetEmail({ to, name, token }) {
+  if (!config.mail.enabled) {
+    if (config.isLocal) {
+      console.log(`[Email Service] Mail disabled. Would have sent password reset to: ${to}`);
+      return { sent: true, preview: 'Mail disabled in config' };
+    }
+    throw ApiError.internal('Email service is currently disabled.', 'MAIL_DISABLED');
+  }
+
+  const resetLink = `${config.frontendUrl}/reset-password?token=${token}`;
+  
+  const mailOptions = {
+    from: config.mail.from,
+    to,
+    subject: 'Shomiti - Reset Your Password',
+    text: `Hello ${name},\n\nYou requested to reset your password. Click the link below to set a new password:\n\n${resetLink}\n\nThis link will expire in ${config.mail.inviteTtlHours} hours.\n\nIf you didn't request this, please ignore this email.`,
+    html: `
+      <div style="font-family: sans-serif; color: #333; max-width: 600px;">
+        <h2 style="color: #C5A059;">Reset Your Password</h2>
+        <p>Hello <strong>${name}</strong>,</p>
+        <p>You requested to reset your password. Please set a new secure password using the link below:</p>
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${resetLink}" style="background-color: #C5A059; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+            Reset Password
+          </a>
+        </div>
+        <p>This link will expire in ${config.mail.inviteTtlHours} hours.</p>
+        <p style="font-size: 12px; color: #888; margin-top: 30px;">
+          If you didn't request this, please ignore this email.<br>
+          If the button doesn't work, copy and paste this link into your browser:<br>
+          ${resetLink}
+        </p>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    
+    if (process.env.NODE_ENV === 'test') {
+      testOutbox.push({ to, subject: mailOptions.subject, text: mailOptions.text, html: mailOptions.html });
+    }
+
+    if (config.mail.transport === 'json') {
+      console.log(`[Email Preview] to: ${to}\n${JSON.stringify(info, null, 2)}`);
+    }
+
+    return { sent: true, messageId: info.messageId };
+  } catch (error) {
+    console.error(`[Email Service] failed to send password reset mail to ${to}:`, error);
+    throw new Error(`Failed to send password reset email: ${error.message}`);
+  }
+}
+
 /** Build a Shomiti-branded HTML email shell. */
 function mailShell({ subject, preview, title, body, action, actionUrl, footer }) {
   const linkHtml = action && actionUrl
