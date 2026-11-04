@@ -98,6 +98,14 @@ export const setupPasswordRules = [
     .withMessage('validation.passwordStrength'),
 ];
 
+export const requestPasswordResetRules = [
+  body('identifier').trim().notEmpty().withMessage('validation.required'),
+];
+
+export const resendPasswordResetRules = [
+  param('id').isMongoId().withMessage('validation.identifier'),
+];
+
 export const listUsersQueryRules = [
   query('page').optional().isInt({ min: 1 }).toInt(),
   query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
