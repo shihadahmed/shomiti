@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useLang } from '@/lib/useLang';
 import { useAuthStore } from '@/lib/auth';
-import { useApi } from '@/lib/useApi';
+import { useApi, apiPost } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import {
   Icon,
@@ -19,11 +19,11 @@ import {
 import { toast } from 'react-toastify';
 
 const TABS = [
-  { id: 'overview', label: 'Overview', i18n: 'members.tabs.overview' },
-  { id: 'savings', label: 'Savings', i18n: 'members.tabs.savings' },
-  { id: 'payments', label: 'Payments', i18n: 'members.tabs.payments' },
-  { id: 'documents', label: 'Documents', i18n: 'members.tabs.documents' },
-  { id: 'ledger', label: 'Ledger', i18n: 'members.tabs.ledger' },
+  { id: 'overview', label: 'Overview', icon: 'user' },
+  { id: 'savings', label: 'Savings Accounts', icon: 'wallet' },
+  { id: 'payments', label: 'Payment History', icon: 'creditCard' },
+  { id: 'documents', label: 'Documents & NID', icon: 'fileText' },
+  { id: 'ledger', label: 'Account Ledger', icon: 'bookOpen' },
 ];
 
 export default function MemberProfilePage() {
@@ -33,9 +33,10 @@ export default function MemberProfilePage() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const canManageMembers = useAuthStore((state) => state.canManageMembers);
 
-  const memberId = params.id;
+  const memberId = params?.id;
   const [activeTab, setActiveTab] = useState('overview');
   const [mounted, setMounted] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   const { data: memberResponse, loading, error, reload } = useApi(
     `/members/${memberId}`,
@@ -43,8 +44,10 @@ export default function MemberProfilePage() {
     { enabled: isAuthenticated && !!memberId }
   );
 
-  // Extract member from response: { member, accounts, transactions }
-  const member = useMemo(() => memberResponse?.member, [memberResponse]);
+  const member = useMemo(() => {
+    if (!memberResponse) return null;
+    return memberResponse.member || memberResponse.data || memberResponse;
+  }, [memberResponse]);
 
   const { data: savingsData } = useApi(
     `/members/${memberId}/savings`,
@@ -74,7 +77,24 @@ export default function MemberProfilePage() {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
+  const handleSendResetEmail = useCallback(async () => {
+    if (!member?.email) {
+      toast.warning('Member does not have an email address associated.');
+      return;
+    }
+
+    setSendingReset(true);
+    try {
+      await apiPost(`/members/${memberId}/reset-password-email`, {});
+      toast.success('Password setup and reset email sent successfully.');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to dispatch password reset email.');
+    } finally {
+      setSendingReset(false);
+    }
+  }, [member?.email, memberId]);
+
+  if (!mounted || loading) {
     return (
       <AppShell>
         <div className="flex min-h-[60vh] items-center justify-center">
@@ -86,157 +106,336 @@ export default function MemberProfilePage() {
 
   if (!isAuthenticated) return null;
 
-  if (loading) {
-    return (
-      <AppShell>
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <LoadingSpinner size="lg" />
-        </div>
-      </AppShell>
-    );
-  }
-
-  if (error || !member) {
+  if (error || !member || !member._id) {
     return (
       <AppShell>
         <div className="max-w-3xl mx-auto py-12">
           <EmptyState
             icon="alert"
-            title={tr('common.notFound') || 'Not Found'}
-            description={tr('members.notFound') || 'Member not found'}
-            actionLabel={tr('common.back')}
-            onAction={() => router.back()}
+            title="Member Not Found"
+            description="The requested member record could not be loaded."
+            actionLabel="Return to Member List"
+            onAction={() => router.push('/members')}
           />
         </div>
       </AppShell>
     );
   }
 
-  // Helper to get address field from presentAddress object
-  const getAddressField = (field) => member.presentAddress?.[field] || member.permanentAddress?.[field] || '—';
-
-  // Helper to get first nominee
-  const nominee = member.nominees?.[0];
+  const renderAddress = (addressData) => {
+    if (!addressData) return '—';
+    if (typeof addressData === 'string') return addressData;
+    const parts = [
+      addressData.village,
+      addressData.postOffice,
+      addressData.upazila,
+      addressData.district,
+    ].filter(Boolean);
+    return parts.length ? parts.join(', ') : '—';
+  };
 
   const memberName = lang === 'bn' && member.fullNameBn ? member.fullNameBn : member.fullName;
   const memberStatus = member.status || 'active';
+  const memberRole = member.user?.role || member.role || 'member';
 
   const renderOverview = () => (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">{tr('members.code') || 'Member Code'}</p>
-          <p className="mt-1 font-mono text-lg font-bold text-brand-900">{member.code || '—'}</p>
-        </div>
-        <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">{tr('members.joinDate') || 'Joined'}</p>
-          <p className="mt-1 font-medium text-brand-900">{member.joinDate ? formatDate(member.joinDate) : '—'}</p>
-        </div>
-        <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">{tr('members.status') || 'Status'}</p>
-          <p className="mt-1"><StatusBadge status={memberStatus} /></p>
-        </div>
-        <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">{tr('members.savingsBalance') || 'Savings Balance'}</p>
-          <p className="mt-1 font-mono text-lg font-bold text-emerald-700">{formatMoney(member.savingsBalance || 0)}</p>
+      {/* 1. TOP HERO PROFILE SPOTLIGHT */}
+      <div className="relative overflow-hidden rounded-2xl border border-brand-200/80 bg-gradient-to-r from-brand-900 via-brand-800 to-brand-950 p-6 text-white shadow-md">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            {/* Member Profile Photo */}
+            <div className="relative h-24 w-24 shrink-0 rounded-2xl border-2 border-white/30 bg-white/10 p-1 shadow-lg backdrop-blur-sm">
+              {member.photo ? (
+                <img
+                  src={member.photo}
+                  alt={memberName}
+                  className="h-full w-full rounded-xl object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded-xl bg-brand-800 text-brand-300">
+                  <Icon name="user" className="h-10 w-10" />
+                </div>
+              )}
+              <span className="absolute -bottom-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm ring-2 ring-white">
+                <Icon name="check" className="h-3.5 w-3.5" />
+              </span>
+            </div>
+
+            {/* Member Info & Designation */}
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 className="text-xl font-bold tracking-tight text-white">{memberName}</h2>
+                <span className="rounded-full bg-brand-700/80 px-3 py-0.5 text-xs font-bold tracking-wide uppercase text-brand-100 border border-white/10">
+                  {memberRole.replace(/_/g, ' ')}
+                </span>
+              </div>
+              <p className="mt-1 font-mono text-sm text-brand-200">
+                Member ID: <span className="font-bold text-white">{member.code || 'PENDING'}</span>
+              </p>
+              <div className="mt-2.5 flex flex-wrap items-center gap-4 text-xs text-brand-200">
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="phone" className="h-3.5 w-3.5 text-brand-300" />
+                  {member.phone || '—'}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="mail" className="h-3.5 w-3.5 text-brand-300" />
+                  {member.email || 'No email attached'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Metrics Badge */}
+          <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 md:pl-6 gap-2">
+            <span className="text-xs uppercase tracking-wider text-brand-300">Total Savings</span>
+            <span className="font-mono text-2xl font-black text-emerald-400">
+              {formatMoney(member.savingsBalance || 0)}
+            </span>
+            <span className="text-[11px] text-brand-300">
+              Joined: {member.createdAt || member.joinDate ? formatDate(member.createdAt || member.joinDate) : '—'}
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* 2. PERSONAL DETAILS & ADDRESS GRID */}
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* Profile Information */}
         <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-          <h4 className="text-sm font-semibold text-brand-900">{tr('members.personalInfo') || 'Personal Information'}</h4>
-          <dl className="mt-4 space-y-3 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.fullName') || 'Full Name'}</dt>
-              <dd className="font-medium text-brand-900">{memberName}</dd>
+          <div className="flex items-center gap-2 border-b border-brand-100 pb-3 mb-4">
+            <Icon name="user" className="h-4 w-4 text-brand-700" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-900">
+              Personal Information & KYC
+            </h4>
+          </div>
+          <dl className="space-y-3 text-sm">
+            <div className="flex justify-between py-1 border-b border-brand-50">
+              <dt className="text-brand-500">Full Name (English)</dt>
+              <dd className="font-semibold text-brand-900">{member.fullName || '—'}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.nid') || 'National ID'}</dt>
-              <dd className="font-mono text-brand-700">{member.nid || '—'}</dd>
+            {member.fullNameBn && (
+              <div className="flex justify-between py-1 border-b border-brand-50">
+                <dt className="text-brand-500">বাংলা নাম</dt>
+                <dd className="font-medium text-brand-900">{member.fullNameBn}</dd>
+              </div>
+            )}
+            <div className="flex justify-between py-1 border-b border-brand-50">
+              <dt className="text-brand-500">Father's / Husband's Name</dt>
+              <dd className="text-brand-800">{member.fatherHusbandName || '—'}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.phone') || 'Phone'}</dt>
-              <dd className="font-mono text-brand-700">{member.phone || '—'}</dd>
+            <div className="flex justify-between py-1 border-b border-brand-50">
+              <dt className="text-brand-500">Mother's Name</dt>
+              <dd className="text-brand-800">{member.motherName || '—'}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.email') || 'Email'}</dt>
-              <dd className="text-brand-700">{member.email || '—'}</dd>
+            <div className="flex justify-between py-1 border-b border-brand-50">
+              <dt className="text-brand-500">National ID (NID)</dt>
+              <dd className="font-mono font-semibold text-brand-900">{member.nid || '—'}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.dob') || 'Date of Birth'}</dt>
-              <dd className="text-brand-700">{member.dateOfBirth ? formatDate(member.dateOfBirth) : '—'}</dd>
+            <div className="flex justify-between py-1 border-b border-brand-50">
+              <dt className="text-brand-500">Date of Birth</dt>
+              <dd className="text-brand-800">{member.dob || member.dateOfBirth ? formatDate(member.dob || member.dateOfBirth) : '—'}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.occupation') || 'Occupation'}</dt>
-              <dd className="text-brand-700">{member.occupation || '—'}</dd>
+            <div className="flex justify-between py-1">
+              <dt className="text-brand-500">Occupation</dt>
+              <dd className="text-brand-800">{member.occupation || '—'}</dd>
             </div>
           </dl>
         </div>
 
-        <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-          <h4 className="text-sm font-semibold text-brand-900">{tr('members.addressInfo') || 'Address Details'}</h4>
-          <dl className="mt-4 space-y-3 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.village') || 'Village'}</dt>
-              <dd className="text-brand-700">{getAddressField('village')}</dd>
+        {/* Address & NID Attachment View */}
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
+            <div className="flex items-center gap-2 border-b border-brand-100 pb-3 mb-4">
+              <Icon name="mapPin" className="h-4 w-4 text-brand-700" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-brand-900">
+                Address Details
+              </h4>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.postOffice') || 'Post Office'}</dt>
-              <dd className="text-brand-700">{getAddressField('postOffice')}</dd>
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-xs font-semibold text-brand-500 block mb-1">Present Address</span>
+                <p className="rounded-xl border border-brand-100 bg-brand-50/40 p-3 text-brand-800">
+                  {renderAddress(member.presentAddress)}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-brand-500 block mb-1">Permanent Address</span>
+                <p className="rounded-xl border border-brand-100 bg-brand-50/40 p-3 text-brand-800">
+                  {renderAddress(member.permanentAddress || member.presentAddress)}
+                </p>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.upazila') || 'Upazila'}</dt>
-              <dd className="text-brand-700">{getAddressField('upazila')}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.district') || 'District'}</dt>
-              <dd className="text-brand-700">{getAddressField('district')}</dd>
-            </div>
-          </dl>
-        </div>
+          </div>
 
-        <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs lg:col-span-2">
-          <h4 className="text-sm font-semibold text-brand-900">{tr('members.nomineeInfo') || 'Nominee Information'}</h4>
-          <dl className="mt-4 space-y-3 text-sm grid grid-cols-2 gap-3">
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.nomineeName') || 'Nominee Name'}</dt>
-              <dd className="font-medium text-brand-900">{nominee?.name || '—'}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.nomineeRelation') || 'Relationship'}</dt>
-              <dd className="text-brand-700">{nominee?.relation || '—'}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.nomineePhone') || 'Nominee Phone'}</dt>
-              <dd className="font-mono text-brand-700">{nominee?.phone || '—'}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.nomineeShare') || 'Share Percentage'}</dt>
-              <dd className="font-medium text-brand-900">{nominee?.percentage ? `${nominee.percentage}%` : '—'}</dd>
-            </div>
-          </dl>
+          {/* Member NID Attachment Preview */}
+          <div className="rounded-2xl border border-brand-200/80 bg-white p-4 shadow-xs">
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-800 block mb-2">
+              Applicant NID Document
+            </span>
+            {member.nidDocument ? (
+              <div className="flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50/30 p-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-16 overflow-hidden rounded-lg border border-brand-200 bg-white">
+                    <img src={member.nidDocument} alt="NID Document" className="h-full w-full object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-brand-900">NID Card Document Scan</p>
+                    <p className="text-[11px] text-brand-500">Verified Identity File</p>
+                  </div>
+                </div>
+                <a
+                  href={member.nidDocument}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50 transition"
+                >
+                  <Icon name="externalLink" className="h-3.5 w-3.5" /> View Full
+                </a>
+              </div>
+            ) : (
+              <p className="text-xs text-brand-400 italic">No document image uploaded.</p>
+            )}
+          </div>
         </div>
       </div>
 
-      {member.userId && (
-        <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-          <h4 className="text-sm font-semibold text-brand-900">{tr('members.portalAccess') || 'Portal Access'}</h4>
-          <dl className="mt-4 space-y-3 text-sm grid grid-cols-2 gap-3">
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.userStatus') || 'User Status'}</dt>
-              <dd className="font-medium text-brand-900"><StatusBadge status={member.user?.status || 'invited'} /></dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.userRole') || 'User Role'}</dt>
-              <dd className="text-brand-700 capitalize">{member.user?.role || 'member'}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">{tr('members.lastLogin') || 'Last Login'}</dt>
-              <dd className="text-brand-700">{member.user?.lastLoginAt ? formatDate(member.user.lastLoginAt) : (tr('common.never') || 'Never')}</dd>
-            </div>
-          </dl>
+      {/* 3. USER ACCESS & RESET PASSWORD EMAIL DISPATCH */}
+      <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-brand-100 pb-3 mb-4 gap-3">
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-900">
+              System Access & Security
+            </h4>
+            <p className="text-xs text-brand-500">Manage portal account credentials and password recovery</p>
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!member.email || sendingReset}
+            onClick={handleSendResetEmail}
+            className="text-xs font-semibold shrink-0"
+          >
+            <Icon name="mail" className="h-3.5 w-3.5 mr-1.5" />
+            {sendingReset ? 'Sending Email...' : 'Send Password Reset Email'}
+          </Button>
         </div>
-      )}
+
+        {!member.email && (
+          <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200 mb-4">
+            Notice: No email registered for this member. Password setup emails can only be dispatched to profiles with a valid email.
+          </p>
+        )}
+
+        <dl className="space-y-3 text-sm grid sm:grid-cols-3 gap-4">
+          <div>
+            <dt className="text-brand-500 text-xs font-semibold uppercase">Account Status</dt>
+            <dd className="mt-1 font-medium text-brand-900">
+              <StatusBadge status={member.user?.status || (member.userId ? 'active' : 'invited')} />
+            </dd>
+          </div>
+          <div>
+            <dt className="text-brand-500 text-xs font-semibold uppercase">Designation / Role</dt>
+            <dd className="mt-1 font-bold text-brand-800 uppercase tracking-wide">
+              {memberRole.replace(/_/g, ' ')}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-brand-500 text-xs font-semibold uppercase">Last Login Activity</dt>
+            <dd className="mt-1 text-brand-700">
+              {member.user?.lastLoginAt ? formatDate(member.user.lastLoginAt) : 'Never Logged In'}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* 4. NOMINEE SHOWCASE CARDS */}
+      <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
+        <div className="flex items-center justify-between border-b border-brand-100 pb-3 mb-5">
+          <div className="flex items-center gap-2">
+            <Icon name="users" className="h-4 w-4 text-brand-700" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-900">
+              Nominee Information & Documents
+            </h4>
+          </div>
+          <span className="rounded-md bg-brand-100 px-2.5 py-1 text-xs font-bold text-brand-800">
+            Total Nominees: {member.nominees?.length || 0}
+          </span>
+        </div>
+
+        {member.nominees?.length ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {member.nominees.map((nom, idx) => (
+              <div
+                key={idx}
+                className="relative overflow-hidden rounded-2xl border border-brand-200/90 bg-gradient-to-b from-white to-brand-50/30 p-4 shadow-xs hover:shadow-md transition"
+              >
+                {/* Header Share Badge */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-brand-200 bg-white shadow-xs">
+                      {nom.photo ? (
+                        <img src={nom.photo} alt={nom.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-brand-100 text-brand-400">
+                          <Icon name="user" className="h-6 w-6" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-brand-900 leading-tight">{nom.name}</h5>
+                      <span className="text-xs font-medium text-brand-600 capitalize">
+                        {nom.relation || 'Nominee'}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-0.5 font-mono text-xs font-bold text-emerald-800 border border-emerald-200">
+                    {nom.percentage || 100}%
+                  </span>
+                </div>
+
+                {/* Nominee Details */}
+                <div className="space-y-1.5 border-t border-brand-100 pt-3 text-xs text-brand-700">
+                  <p className="flex justify-between">
+                    <span className="text-brand-500">NID / Reg No:</span>
+                    <span className="font-mono font-medium text-brand-900">{nom.nid || '—'}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span className="text-brand-500">Mobile Phone:</span>
+                    <span className="font-mono font-medium text-brand-900">{nom.phone || '—'}</span>
+                  </p>
+                  {nom.address && (
+                    <p className="flex justify-between">
+                      <span className="text-brand-500">Address:</span>
+                      <span className="text-right text-brand-800 line-clamp-1">{nom.address}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Nominee Document link if exists */}
+                {nom.nidDocument && (
+                  <div className="mt-3 border-t border-brand-100 pt-2 flex items-center justify-between text-xs">
+                    <span className="text-brand-500 flex items-center gap-1">
+                      <Icon name="fileText" className="h-3.5 w-3.5 text-brand-600" /> Document attached
+                    </span>
+                    <a
+                      href={nom.nidDocument}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-brand-700 hover:text-brand-900 underline"
+                    >
+                      View NID
+                    </a>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-brand-500 italic py-2">No nominees recorded for this member.</p>
+        )}
+      </div>
     </div>
   );
 
@@ -247,8 +446,8 @@ export default function MemberProfilePage() {
       return (
         <EmptyState
           icon="wallet"
-          title={tr('members.noSavingsAccount') || 'No Savings Account'}
-          description={tr('members.noSavingsDesc') || 'This member does not have a savings account yet.'}
+          title="No Savings Account"
+          description="This member does not have an active savings account ledger."
         />
       );
     }
@@ -256,19 +455,19 @@ export default function MemberProfilePage() {
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">{tr('members.accountNo') || 'Account No.'}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">Account Number</p>
             <p className="mt-1 font-mono text-lg font-bold text-brand-900">{account.accountNo || '—'}</p>
           </div>
           <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">{tr('members.scheme') || 'Scheme'}</p>
-            <p className="mt-1 font-medium text-brand-900">{account.scheme?.name || account.type || '—'}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">Scheme Type</p>
+            <p className="mt-1 font-medium text-brand-900">{account.scheme?.name || account.type || 'Standard'}</p>
           </div>
           <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">{tr('members.currentBalance') || 'Current Balance'}</p>
-            <p className="mt-1 font-mono text-lg font-bold text-emerald-700">{formatMoney(account.currentBalance || account.balancePaisa ? account.balancePaisa / 100 : 0)}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">Current Balance</p>
+            <p className="mt-1 font-mono text-lg font-bold text-emerald-700">{formatMoney(account.currentBalance || 0)}</p>
           </div>
           <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">{tr('members.totalDeposited') || 'Total Deposited'}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">Total Deposited</p>
             <p className="mt-1 font-mono text-lg font-bold text-brand-900">{formatMoney(account.totalDeposited || 0)}</p>
           </div>
         </div>
@@ -282,8 +481,8 @@ export default function MemberProfilePage() {
       return (
         <EmptyState
           icon="creditCard"
-          title={tr('members.noPayments') || 'No Payments'}
-          description={tr('members.noPaymentsDesc') || 'No payment records found for this member.'}
+          title="No Payment History"
+          description="No billing or transaction records found for this member."
         />
       );
     }
@@ -292,18 +491,18 @@ export default function MemberProfilePage() {
         <table className="min-w-full divide-y divide-brand-200/70 text-left text-sm">
           <thead className="bg-[#FAF7F2] text-[11px] font-bold uppercase tracking-wider text-brand-600">
             <tr>
-              <th scope="col" className="px-5 py-3.5">{tr('payments.date') || 'Date'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('payments.type') || 'Type'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('payments.amount') || 'Amount'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('payments.method') || 'Method'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('payments.status') || 'Status'}</th>
+              <th scope="col" className="px-5 py-3.5">Date</th>
+              <th scope="col" className="px-4 py-3.5">Transaction Type</th>
+              <th scope="col" className="px-4 py-3.5">Amount</th>
+              <th scope="col" className="px-4 py-3.5">Method</th>
+              <th scope="col" className="px-4 py-3.5">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-100/80 bg-white">
             {payments.map((payment) => (
               <tr key={payment._id} className="hover:bg-brand-50/40">
                 <td className="whitespace-nowrap px-5 py-3.5 text-xs text-brand-600">{formatDate(payment.date)}</td>
-                <td className="px-4 py-3.5 text-sm text-brand-900">{tr(`paymentType.${payment.type}`) || payment.type}</td>
+                <td className="px-4 py-3.5 text-sm font-medium text-brand-900">{payment.type}</td>
                 <td className="whitespace-nowrap px-4 py-3.5 font-mono font-bold text-emerald-700">{formatMoney(payment.amount)}</td>
                 <td className="px-4 py-3.5 text-xs text-brand-700">{payment.method}</td>
                 <td className="px-4 py-3.5"><StatusBadge status={payment.status} /></td>
@@ -316,38 +515,51 @@ export default function MemberProfilePage() {
   };
 
   const renderDocuments = () => {
-    const docs = documentsData?.items || [];
-    if (!docs.length) {
-      return (
-        <EmptyState
-          icon="file"
-          title={tr('members.noDocuments') || 'No Documents'}
-          description={tr('members.noDocumentsDesc') || 'No documents uploaded for this member.'}
-        />
-      );
-    }
     return (
-      <div className="overflow-x-auto rounded-2xl border border-brand-200/80 bg-white shadow-xs">
-        <table className="min-w-full divide-y divide-brand-200/70 text-left text-sm">
-          <thead className="bg-[#FAF7F2] text-[11px] font-bold uppercase tracking-wider text-brand-600">
-            <tr>
-              <th scope="col" className="px-5 py-3.5">{tr('documents.name') || 'Name'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('documents.type') || 'Type'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('documents.uploadedAt') || 'Uploaded'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('documents.status') || 'Status'}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-brand-100/80 bg-white">
-            {docs.map((doc) => (
-              <tr key={doc._id} className="hover:bg-brand-50/40">
-                <td className="px-5 py-3.5 font-medium text-brand-900">{doc.name}</td>
-                <td className="px-4 py-3.5 text-xs text-brand-700">{tr(`documentType.${doc.type}`) || doc.type}</td>
-                <td className="px-4 py-3.5 text-xs text-brand-600">{formatDate(doc.uploadedAt)}</td>
-                <td className="px-4 py-3.5"><StatusBadge status={doc.status} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Member Photo Card */}
+        <div className="rounded-2xl border border-brand-200/80 bg-white p-4 shadow-xs">
+          <span className="text-xs font-bold uppercase tracking-wider text-brand-800 block mb-3">
+            Member Photograph
+          </span>
+          <div className="h-48 w-full rounded-xl border border-brand-100 bg-brand-50 overflow-hidden flex items-center justify-center">
+            {member.photo ? (
+              <img src={member.photo} alt={memberName} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-xs text-brand-400">No photo uploaded</span>
+            )}
+          </div>
+        </div>
+
+        {/* Member NID Card */}
+        <div className="rounded-2xl border border-brand-200/80 bg-white p-4 shadow-xs">
+          <span className="text-xs font-bold uppercase tracking-wider text-brand-800 block mb-3">
+            Member NID Card Document
+          </span>
+          <div className="h-48 w-full rounded-xl border border-brand-100 bg-brand-50 overflow-hidden flex items-center justify-center">
+            {member.nidDocument ? (
+              <img src={member.nidDocument} alt="NID Card" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-xs text-brand-400">No NID document uploaded</span>
+            )}
+          </div>
+        </div>
+
+        {/* Nominee Documents */}
+        {member.nominees?.map((nom, idx) => (
+          <div key={idx} className="rounded-2xl border border-brand-200/80 bg-white p-4 shadow-xs">
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-800 block mb-3">
+              Nominee #{idx + 1} Document ({nom.name})
+            </span>
+            <div className="h-48 w-full rounded-xl border border-brand-100 bg-brand-50 overflow-hidden flex items-center justify-center">
+              {nom.nidDocument || nom.photo ? (
+                <img src={nom.nidDocument || nom.photo} alt={nom.name} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-xs text-brand-400">No document attached</span>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     );
   };
@@ -358,8 +570,8 @@ export default function MemberProfilePage() {
       return (
         <EmptyState
           icon="fileText"
-          title={tr('members.noLedger') || 'No Ledger Entries'}
-          description={tr('members.noLedgerDesc') || 'No ledger entries found for this member.'}
+          title="No Ledger Records"
+          description="There are currently no ledger accounting entries for this member."
         />
       );
     }
@@ -368,11 +580,11 @@ export default function MemberProfilePage() {
         <table className="min-w-full divide-y divide-brand-200/70 text-left text-sm">
           <thead className="bg-[#FAF7F2] text-[11px] font-bold uppercase tracking-wider text-brand-600">
             <tr>
-              <th scope="col" className="px-5 py-3.5">{tr('ledger.date') || 'Date'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('ledger.description') || 'Description'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('ledger.debit') || 'Debit'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('ledger.credit') || 'Credit'}</th>
-              <th scope="col" className="px-4 py-3.5">{tr('ledger.balance') || 'Balance'}</th>
+              <th scope="col" className="px-5 py-3.5">Date</th>
+              <th scope="col" className="px-4 py-3.5">Description</th>
+              <th scope="col" className="px-4 py-3.5">Debit</th>
+              <th scope="col" className="px-4 py-3.5">Credit</th>
+              <th scope="col" className="px-4 py-3.5">Balance</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-100/80 bg-white">
@@ -410,54 +622,49 @@ export default function MemberProfilePage() {
 
   return (
     <AppShell>
+      {/* Top Action Bar */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <PageHeader
-            title={memberName}
-            subtitle={member.code}
+            title="Member Profile"
+            subtitle="View full membership records, documentation, and savings ledger"
           />
-          <div className="mt-2 flex items-center gap-2">
-            <StatusBadge status={memberStatus} />
-            {member.userId && member.user && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700">
-                <Icon name="shield" className="h-3 w-3" />
-                {tr(`role.${member.user.role}`) || member.user.role}
-              </span>
-            )}
-          </div>
         </div>
         {canManageMembers?.() && (
           <div className="flex shrink-0 items-center gap-2">
             <Button variant="outline" onClick={() => router.push(`/members/${memberId}/edit`)}>
               <Icon name="pencilLine" className="h-4 w-4 mr-1.5" />
-              {tr('common.edit') || 'Edit'}
+              Edit Profile
             </Button>
           </div>
         )}
       </div>
 
+      {/* Modern Tabs Navigation */}
       <div className="mb-6 border-b border-brand-200/70">
-        <nav className="flex gap-1 overflow-x-auto pb-1 -mb-px" role="tablist">
+        <nav className="flex gap-2 overflow-x-auto pb-1 -mb-px" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               role="tab"
               aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`shrink-0 whitespace-nowrap rounded-t-xl px-4 py-2 text-xs font-semibold transition-all ${
+              className={`inline-flex items-center gap-2 shrink-0 whitespace-nowrap rounded-t-xl px-4 py-2.5 text-xs font-bold transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white text-brand-900 border-b-2 border-brand-700 shadow-sm'
-                  : 'text-brand-500 hover:text-brand-700 hover:bg-brand-50/50'
+                  ? 'bg-white text-brand-900 border-b-2 border-brand-800 shadow-xs'
+                  : 'text-brand-500 hover:text-brand-800 hover:bg-brand-50/60'
               }`}
             >
-              {tr(tab.i18n) || tab.label}
+              <Icon name={tab.icon} className="h-4 w-4" />
+              {tab.label}
             </button>
           ))}
         </nav>
       </div>
 
-      <div className="rounded-b-2xl border border-brand-200/80 bg-white shadow-xs">
-        <div className="p-6">{renderTabContent()}</div>
+      {/* Main Container */}
+      <div className="rounded-b-2xl border border-brand-200/80 bg-white p-6 shadow-xs">
+        {renderTabContent()}
       </div>
     </AppShell>
   );
