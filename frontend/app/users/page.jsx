@@ -163,6 +163,20 @@ export default function UsersPage() {
     }
   };
 
+  const handleResendResetEmail = async (user) => {
+    if (!user.email) {
+      toast.error(tr('users.noEmailForReset') || 'User has no email address.');
+      return;
+    }
+    if (!window.confirm(tr('users.confirmResendResetEmail') || 'Resend password reset email?')) return;
+    try {
+      await apiPost(`/auth/users/${user._id}/resend-reset-email`);
+      toast.success(tr('users.resetEmailSent') || 'Password reset email resent successfully.');
+    } catch (err) {
+      toast.error(err?.message || tr('error.generic'));
+    }
+  };
+
   const handleDeleteUser = async (user) => {
     if (user._id === currentUser?._id) {
       toast.error(tr('users.cannotDeleteSelf'));
@@ -347,12 +361,13 @@ export default function UsersPage() {
                                   <Icon name="edit" className="h-4 w-4" />
                                 </Button>
                               }
-                              items={[
-                                ...(u.role !== 'super_admin'
-                                  ? [{ label: tr('users.changeRole'), onClick: () => openEditUser(u), icon: 'users' }]
-                                  : []),
-                                { label: tr('users.changeStatus'), onClick: () => handleStatusToggle(u._id, !u.isActive), icon: u.isActive ? 'alert' : 'check' },
-                              ]}
+items={[
+                                 ...(u.role !== 'super_admin'
+                                   ? [{ label: tr('users.changeRole'), onClick: () => openEditUser(u), icon: 'users' }]
+                                   : []),
+                                 { label: tr('users.resendResetEmail'), onClick: () => handleResendResetEmail(u), icon: 'mail' },
+                                 { label: tr('users.changeStatus'), onClick: () => handleStatusToggle(u._id, !u.isActive), icon: u.isActive ? 'alert' : 'check' },
+                               ]}
                             />
                           )}
                         </div>
