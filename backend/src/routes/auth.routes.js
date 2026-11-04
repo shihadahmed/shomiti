@@ -12,6 +12,8 @@ import {
   updateUserStatusRules,
   resetUserPasswordRules,
   setupPasswordRules,
+  requestPasswordResetRules,
+  resendPasswordResetRules,
   listUsersQueryRules,
   idParam,
 } from '../validators/auth.validator.js';
@@ -23,6 +25,7 @@ const router = Router();
 
 router.post('/login', loginLimiter, loginRules, validate, authController.login);
 router.post('/setup-password', setupPasswordLimiter, setupPasswordRules, validate, authController.setupPassword);
+router.post('/forgot-password', setupPasswordLimiter, requestPasswordResetRules, validate, authController.requestPasswordReset);
 router.post('/logout', authController.logout);
 router.get('/me', authenticate, authController.me);
 router.post(
@@ -108,6 +111,15 @@ router.post(
   resetUserPasswordRules,
   validate,
   authController.resetUserPassword,
+);
+router.post(
+  '/users/:id/resend-reset-email',
+  authenticate,
+  requirePermission('roles.assign'),
+  idParam,
+  resendPasswordResetRules,
+  validate,
+  authController.resendPasswordResetEmail,
 );
 router.delete(
   '/users/:id',
