@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
@@ -273,21 +274,13 @@ export default function LoginPage() {
               </div>
 
               <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
+                <Link
+                  href="/forgot-password"
                   className="text-sm font-medium text-brand-700 transition hover:text-brand-900 hover:underline"
-                  onClick={() => setHelpOpen((value) => !value)}
-                  aria-expanded={helpOpen}
                 >
                   {tr('login.forgotPassword')}
-                </button>
+                </Link>
               </div>
-
-              {helpOpen && (
-                <p className="rounded-xl border border-brand-200 bg-brand-50 px-3.5 py-3 text-xs leading-relaxed text-brand-700 fade-in" role="note">
-                  {tr('login.help')}
-                </p>
-              )}
 
               <Button
                 type="submit"
