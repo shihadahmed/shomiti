@@ -4,8 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLang } from '@/lib/useLang';
 import { apiPost } from '@/lib/useApi';
-import AppShell from '@/components/layout/AppShell';
-import { Icon, Input, Button, PageHeader, LoadingSpinner } from '@/components/ui/common';
+import { Icon, Input, Button, LoadingSpinner } from '@/components/ui/common';
 import { toast } from 'react-toastify';
 
 function ResetPasswordForm() {
@@ -115,16 +114,28 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   const { tr } = useLang();
   return (
-    <AppShell>
-      <div className="space-y-6">
-        <PageHeader 
-          title={tr('resetPassword.title')} 
-          subtitle={tr('resetPassword.subtitle')} 
-        />
-        <Suspense fallback={<LoadingSpinner size="md" className="mx-auto" />}>
-          <ResetPasswordForm />
-        </Suspense>
+    <div className="flex min-h-screen items-center justify-center bg-brand-50 px-5 py-10 sm:px-8">
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex items-center justify-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-700 shadow-lg ring-4 ring-brand-100">
+            <Icon name="wallet" className="h-5 w-5 text-gold-300" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold leading-tight text-brand-900">{tr('app.name')}</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-brand-500">{tr('app.tagline')}</p>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-brand-200/70 bg-white/95 p-6 shadow-[0_30px_70px_-40px_rgba(45,21,27,0.55)] backdrop-blur sm:p-9 slide-up">
+          <div className="mb-7">
+            <h1 className="text-[26px] font-bold tracking-tight text-brand-900">{tr('resetPassword.title')}</h1>
+            <p className="mt-1.5 text-sm text-brand-500">{tr('resetPassword.subtitle')}</p>
+          </div>
+          <Suspense fallback={<LoadingSpinner size="md" className="mx-auto" />}>
+            <ResetPasswordForm />
+          </Suspense>
+        </div>
       </div>
-    </AppShell>
+    </div>
   );
 }
