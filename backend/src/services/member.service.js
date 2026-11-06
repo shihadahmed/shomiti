@@ -10,9 +10,16 @@ import { nextDocNo } from '../utils/sequence.js';
 import { writeAudit } from '../utils/audit.js';
 import { hashPassword, createSetupToken } from '../utils/password.js';
 import * as emailService from './email.service.js';
+import { resetUserPassword, resendPasswordResetEmail } from './auth.service.js';
 import { uploadToCloudinary } from '../middleware/upload.js';
 import crypto from 'node:crypto';
-import { MEMBER_STATUS, SAVINGS_ACCOUNT_TYPES, ROLES, USER_STATUS, EXECUTIVE_ROLES } from '../config/constants.js';
+import {
+  MEMBER_STATUS,
+  SAVINGS_ACCOUNT_TYPES,
+  ROLES,
+  ROLE_VALUES,
+  USER_STATUS,
+} from '../config/constants.js';
 
 const EDITABLE_FIELDS = [
   'fullName',
@@ -31,6 +38,9 @@ const EDITABLE_FIELDS = [
   'notes',
 ];
 
+/** Roles that may be granted from the Members module. */
+const ASSIGNABLE_SYSTEM_ROLES = ROLE_VALUES.filter((role) => role !== ROLES.SUPER_ADMIN);
+
 function assertObjectId(id) {
   if (!mongoose.isValidObjectId(id)) {
     throw ApiError.badRequest('Invalid member id.', 'INVALID_IDENTIFIER');
@@ -38,6 +48,19 @@ function assertObjectId(id) {
 }
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** The subset of a User record exposed through the member APIs. */
+function userSummary(user) {
+  if (!user) return null;
+  return {
+    _id: user._id,
+    role: user.role,
+    isActive: user.isActive,
+    status: user.status,
+    lastLoginAt: user.lastLoginAt,
+    mustChangePassword: user.mustChangePassword,
+  };
+}
 
 function mapAddress(payload, field) {
   // Handle both structured address and fullAddress text
@@ -101,7 +124,91 @@ function applyEditableFields(member, payload) {
   }
 }
 
+/**
+ * Finds or creates the portal login linked to a Member.
+ *
+ * A member always owns exactly one login account. Linking also repairs legacy
+ * rows where only one side of the Member.userId / User.memberId pair exists.
+ */
+async function ensureLinkedUser(member, { session, create = true } = {}) {
+  const queryOptions = session ? { session } : {};
+  const email = member.email ? String(member.email).toLowerCase() : undefined;
+
+  if (member.userId) {
+    let byIdQuery = User.findById(member.userId).select('+tokenVersion');
+    if (session) byIdQuery = byIdQuery.session(session);
+    const linked = await byIdQuery;
+    if (linked) return { user: linked, created: false, inviteToken: undefined };
+  }
+
+  const or = [{ phone: member.phone }];
+  if (email) or.push({ email });
+  let existingQuery = User.findOne({ $or: or }).select('+tokenVersion');
+  if (session) existingQuery = existingQuery.session(session);
+  const existing = await existingQuery;
+
+  if (existing) {
+    if (existing.memberId && !existing.memberId.equals(member._id)) {
+      throw ApiError.conflict(
+        'This phone or email already belongs to another member account.',
+        'USER_ALREADY_LINKED',
+      );
+    }
+    if (!existing.memberId) {
+      existing.memberId = member._id;
+      await existing.save(queryOptions);
+    }
+    if (!member.userId || !member.userId.equals(existing._id)) {
+      member.userId = existing._id;
+      await member.save(queryOptions);
+    }
+    return { user: existing, created: false, inviteToken: undefined };
+  }
+
+  if (!create) return { user: null, created: false, inviteToken: undefined };
+
+  const placeholderPassword = await hashPassword(crypto.randomBytes(32).toString('hex'));
+  const setupToken = email ? createSetupToken() : null;
+
+  const [createdUser] = await User.create(
+    [
+      {
+        name: member.fullName,
+        email,
+        phone: member.phone,
+        nid: member.nid,
+        role: ROLES.MEMBER,
+        memberId: member._id,
+        passwordHash: placeholderPassword,
+        resetPasswordToken: setupToken?.hash,
+        resetPasswordExpires: setupToken?.expires,
+        mustChangePassword: true,
+        status: USER_STATUS.INVITED,
+      },
+    ],
+    queryOptions,
+  );
+
+  member.userId = createdUser._id;
+  await member.save(queryOptions);
+
+  return {
+    user: createdUser,
+    created: true,
+    inviteToken: setupToken?.raw,
+  };
+}
+
 export async function createMember(payload, actor, req) {
+  // New members are always ordinary members. Elevated roles are assigned from
+  // the member profile after the account exists.
+  if (payload.role && payload.role !== ROLES.MEMBER) {
+    throw ApiError.badRequest(
+      'New members are always created with the member role.',
+      'ROLE_NOT_ALLOWED',
+    );
+  }
+
   const session = await mongoose.startSession();
   let outcome;
 
@@ -153,7 +260,7 @@ export async function createMember(payload, actor, req) {
         { session },
       );
 
-const [account] = await SavingsAccount.create(
+      const [account] = await SavingsAccount.create(
         [
           {
             accountNo,
@@ -165,63 +272,10 @@ const [account] = await SavingsAccount.create(
         { session },
       );
 
-      // Create User account for member portal access (always create, use phone if no email)
-      let user = null;
-      let inviteToken = null;
-
-      // Check if user already exists with this email or phone
-      const existingUser = await User.findOne({
-        $or: [
-          { email: payload.email?.toLowerCase() },
-          { phone: payload.phone },
-        ],
-      }).session(session);
-
-      if (!existingUser) {
-        const { raw: rawToken, hash: tokenHash, expires: tokenExpires } = createSetupToken();
-        const placeholderPassword = await hashPassword(crypto.randomBytes(32).toString('hex'));
-
-        // Use role from payload or default to 'member'
-        const memberRole = payload.role || 'member';
-
-        // `Model.create([doc])` resolves to an array — destructure it, otherwise
-        // `user.email` / `user.name` are undefined and the invite never sends.
-        const [createdUser] = await User.create(
-          [
-            {
-              name: payload.fullName,
-              email: payload.email?.toLowerCase() || undefined,
-              phone: payload.phone,
-              nid: payload.nid,
-              role: memberRole,
-              memberId: member._id,
-              passwordHash: placeholderPassword,
-              resetPasswordToken: tokenHash,
-              resetPasswordExpires: tokenExpires,
-              mustChangePassword: true,
-              status: USER_STATUS.INVITED,
-            },
-          ],
-          { session },
-        );
-
-        user = createdUser;
-        inviteToken = rawToken;
-
-        // Update member with userId (bi-directional linking)
-        member.userId = user._id;
-        await member.save({ session });
-      } else {
-        // Link existing user to this member if not already linked
-        if (!existingUser.memberId || !existingUser.memberId.equals(member._id)) {
-          existingUser.memberId = member._id;
-          await existingUser.save({ session });
-        }
-        if (!member.userId || !member.userId.equals(existingUser._id)) {
-          member.userId = existingUser._id;
-          await member.save({ session });
-        }
-      }
+      // Every member owns a login account, even when no email address was
+      // supplied. Such accounts sign in by phone after a Super Admin issues a
+      // temporary password from the member access panel.
+      const linked = await ensureLinkedUser(member, { session });
 
       await writeAudit({
         actor: actor._id,
@@ -233,7 +287,7 @@ const [account] = await SavingsAccount.create(
         session,
       });
 
-      return { member, account, user, inviteToken };
+      return { member, account, ...linked };
     });
   } finally {
     await session.endSession();
@@ -269,7 +323,7 @@ const [account] = await SavingsAccount.create(
   return {
     member: outcome.member,
     account: outcome.account,
-    user: outcome.user,
+    user: outcome.user ? outcome.user.toJSON() : null,
     emailSent,
   };
 }
@@ -312,12 +366,40 @@ export async function listMembers(query) {
             },
           },
           {
+            $lookup: {
+              from: 'users',
+              localField: 'userId',
+              foreignField: '_id',
+              as: 'linkedUser',
+            },
+          },
+          {
+            $unwind: {
+              path: '$linkedUser',
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+          {
             $addFields: {
               savingsBalancePaisa: { $sum: '$savingsAccounts.balancePaisa' },
               accountCount: { $size: '$savingsAccounts' },
+              user: {
+                $cond: [
+                  { $ifNull: ['$linkedUser._id', false] },
+                  {
+                    _id: '$linkedUser._id',
+                    role: '$linkedUser.role',
+                    isActive: '$linkedUser.isActive',
+                    status: '$linkedUser.status',
+                    lastLoginAt: '$linkedUser.lastLoginAt',
+                    mustChangePassword: '$linkedUser.mustChangePassword',
+                  },
+                  null,
+                ],
+              },
             },
           },
-          { $project: { savingsAccounts: 0 } },
+          { $project: { savingsAccounts: 0, linkedUser: 0 } },
         ],
         total: [{ $count: 'count' }],
       },
@@ -342,7 +424,10 @@ export async function getMemberById(id) {
   const member = await Member.findById(id);
   if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
 
-  const [accounts, transactions] = await Promise.all([
+  const [user, accounts, transactions] = await Promise.all([
+    member.userId
+      ? User.findById(member.userId).select('role isActive status lastLoginAt mustChangePassword')
+      : null,
     SavingsAccount.find({ member: member._id }).sort({ createdAt: 1 }),
     SavingsTransaction.find({ member: member._id })
       .sort({ createdAt: -1 })
@@ -357,6 +442,7 @@ export async function getMemberById(id) {
       savingsBalancePaisa: accounts.reduce((sum, account) => sum + (account.balancePaisa || 0), 0),
       savingsBalance: accounts.reduce((sum, account) => sum + (account.balancePaisa || 0), 0) / 100,
     },
+    user: userSummary(user),
     accounts,
     transactions,
   };
@@ -364,24 +450,57 @@ export async function getMemberById(id) {
 
 export async function updateMember(id, payload, actor, req) {
   assertObjectId(id);
-  const member = await Member.findById(id);
-  if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
+  if (payload.role !== undefined) {
+    throw ApiError.badRequest(
+      'Role changes must use the member role endpoint.',
+      'ROLE_CHANGE_ENDPOINT_REQUIRED',
+    );
+  }
 
-  const before = member.toObject();
-  applyEditableFields(member, payload);
-  await member.save();
+  const session = await mongoose.startSession();
+  let updated;
 
-  await writeAudit({
-    actor: actor._id,
-    action: 'member.updated',
-    entityType: 'Member',
-    entityId: member._id,
-    before,
-    after: member,
-    req,
-  });
+  try {
+    updated = await session.withTransaction(async () => {
+      const member = await Member.findById(id).session(session);
+      if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
 
-  return member;
+      const before = member.toObject();
+      applyEditableFields(member, payload);
+      await member.save({ session });
+
+      // Keep the login identity in sync with the member profile. Otherwise a
+      // phone/email change would leave the member unable to sign in or receive
+      // password-reset mail at the new address.
+      if (member.userId) {
+        const user = await User.findById(member.userId).session(session);
+        if (user) {
+          user.name = member.fullName;
+          user.email = member.email ? String(member.email).toLowerCase() : undefined;
+          user.phone = member.phone;
+          user.nid = member.nid;
+          await user.save({ session });
+        }
+      }
+
+      await writeAudit({
+        actor: actor._id,
+        action: 'member.updated',
+        entityType: 'Member',
+        entityId: member._id,
+        before,
+        after: member,
+        req,
+        session,
+      });
+
+      return member;
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  return updated;
 }
 
 export async function setMemberPhoto(id, file, actor, req) {
@@ -435,9 +554,29 @@ export async function deactivateMember(id, actor, req) {
   const member = await Member.findById(id);
   if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
 
+  const { user } = await ensureLinkedUser(member, { create: false });
+
+  if (user) {
+    if (user.role === ROLES.SUPER_ADMIN) {
+      throw ApiError.badRequest(
+        'A Super Admin account cannot be deactivated from member management.',
+        'SUPER_ADMIN_DELETE_FORBIDDEN',
+      );
+    }
+    if (actor._id.toString() === user._id.toString()) {
+      throw ApiError.badRequest('You cannot deactivate your own account.', 'SELF_DELETION_FORBIDDEN');
+    }
+  }
+
   const before = member.toObject();
   member.status = MEMBER_STATUS.RESIGNED;
   await member.save();
+
+  if (user) {
+    user.isActive = false;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+  }
 
   await writeAudit({
     actor: actor._id,
@@ -487,32 +626,34 @@ export async function getMemberOptions(query = {}) {
 
 export async function updateMemberRole(id, newRole, actor, req) {
   assertObjectId(id);
+
+  if (actor.role !== ROLES.SUPER_ADMIN) {
+    throw ApiError.forbidden('Only Super Admin can change member roles.', 'ROLE_ASSIGNMENT_FORBIDDEN');
+  }
+  if (newRole === ROLES.SUPER_ADMIN) {
+    throw ApiError.badRequest(
+      'Super Admin cannot be assigned through member management.',
+      'SUPER_ADMIN_ASSIGNMENT_FORBIDDEN',
+    );
+  }
+
   const member = await Member.findById(id);
   if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
 
-  // Check if member has a linked user
-  if (!member.userId) {
-    throw ApiError.badRequest('Member does not have a linked user account.', 'NO_USER_ACCOUNT');
-  }
+  const { user } = await ensureLinkedUser(member);
 
-  // Prevent self-role-change
-  if (actor._id.toString() === member.userId.toString()) {
+  if (actor._id.toString() === user._id.toString()) {
     throw ApiError.badRequest('You cannot change your own role.', 'SELF_DEMOTION_FORBIDDEN');
   }
-
-  const user = await User.findById(member.userId);
-  if (!user) {
-    throw ApiError.notFound('Linked user account not found.', 'USER_NOT_FOUND');
+  if (user.role === ROLES.SUPER_ADMIN) {
+    throw ApiError.badRequest(
+      'Super Admin roles are managed outside member management.',
+      'SUPER_ADMIN_ROLE_IMMUTABLE',
+    );
   }
 
-  // Only super_admin can assign executive roles
-  if (EXECUTIVE_ROLES.includes(newRole) && actor.role !== ROLES.SUPER_ADMIN) {
-    throw ApiError.forbidden('Only Super Admin can assign executive roles.', 'EXECUTIVE_ROLE_RESTRICTED');
-  }
-
-  // Validate role exists in Role collection (unless it's a system role)
-  const systemRoles = ['super_admin', 'president', 'general_secretary', 'treasurer', 'member'];
-  if (!systemRoles.includes(newRole)) {
+  // Custom roles must exist; the built-in system roles are always valid.
+  if (!ASSIGNABLE_SYSTEM_ROLES.includes(newRole)) {
     const roleExists = await Role.findOne({ name: newRole });
     if (!roleExists) {
       throw ApiError.badRequest('Role does not exist.', 'ROLE_NOT_FOUND');
@@ -533,7 +674,79 @@ export async function updateMemberRole(id, newRole, actor, req) {
     req,
   });
 
-  return { member: member.toJSON(), user: user.toJSON() };
+  return { member: member.toJSON(), user: userSummary(user) };
+}
+
+export async function updateMemberAccountStatus(id, isActive, actor, req) {
+  assertObjectId(id);
+
+  if (actor.role !== ROLES.SUPER_ADMIN) {
+    throw ApiError.forbidden(
+      'Only Super Admin can change portal access.',
+      'ACCOUNT_STATUS_FORBIDDEN',
+    );
+  }
+
+  const member = await Member.findById(id);
+  if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
+
+  const { user } = await ensureLinkedUser(member);
+
+  if (!isActive && actor._id.toString() === user._id.toString()) {
+    throw ApiError.badRequest('You cannot disable your own account.', 'SELF_SUSPENSION_FORBIDDEN');
+  }
+
+  if (!isActive && user.role === ROLES.SUPER_ADMIN) {
+    const activeSuperAdmins = await User.countDocuments({
+      role: ROLES.SUPER_ADMIN,
+      isActive: true,
+    });
+    if (activeSuperAdmins <= 1) {
+      throw ApiError.badRequest(
+        'Cannot disable the last active Super Admin. At least one active Super Admin must exist.',
+        'LAST_SUPER_ADMIN_PROTECTION',
+      );
+    }
+  }
+
+  const before = user.isActive;
+  user.isActive = Boolean(isActive);
+  if (!user.isActive) {
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+  }
+  await user.save();
+
+  await writeAudit({
+    actor: actor._id,
+    action: 'member.account_status_changed',
+    entityType: 'Member',
+    entityId: member._id,
+    before: { isActive: before },
+    after: { isActive: user.isActive },
+    req,
+  });
+
+  return { member: member.toJSON(), user: userSummary(user) };
+}
+
+export async function sendMemberPasswordResetEmail(id, actor, req) {
+  assertObjectId(id);
+
+  const member = await Member.findById(id);
+  if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
+
+  const { user } = await ensureLinkedUser(member);
+  return resendPasswordResetEmail(user._id.toString(), actor, req);
+}
+
+export async function resetMemberPassword(id, actor, req) {
+  assertObjectId(id);
+
+  const member = await Member.findById(id);
+  if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
+
+  const { user } = await ensureLinkedUser(member);
+  return resetUserPassword(user._id.toString(), undefined, actor, req);
 }
 
 export default {
@@ -547,4 +760,7 @@ export default {
   getMemberTransactions,
   getMemberOptions,
   updateMemberRole,
+  updateMemberAccountStatus,
+  sendMemberPasswordResetEmail,
+  resetMemberPassword,
 };

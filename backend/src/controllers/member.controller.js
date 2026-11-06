@@ -67,6 +67,29 @@ export const updateMemberRole = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result, message: 'Member role updated successfully.' });
 });
 
+/** PATCH /api/members/:id/account-status — enable or disable portal access */
+export const updateMemberAccountStatus = asyncHandler(async (req, res) => {
+  const result = await memberService.updateMemberAccountStatus(
+    req.params.id,
+    req.body.isActive,
+    req.user,
+    req,
+  );
+  res.json({ success: true, data: result, message: 'Member portal access updated successfully.' });
+});
+
+/** POST /api/members/:id/reset-password-email — send a password setup email */
+export const sendMemberPasswordResetEmail = asyncHandler(async (req, res) => {
+  const result = await memberService.sendMemberPasswordResetEmail(req.params.id, req.user, req);
+  res.json({ success: true, data: result, message: 'Password reset email sent.' });
+});
+
+/** POST /api/members/:id/reset-password — issue a temporary password */
+export const resetMemberPassword = asyncHandler(async (req, res) => {
+  const result = await memberService.resetMemberPassword(req.params.id, req.user, req);
+  res.json({ success: true, data: result, message: 'Temporary password generated.' });
+});
+
 export default {
   listMembers,
   memberOptions,
@@ -78,4 +101,7 @@ export default {
   uploadPhoto,
   downloadPhoto,
   updateMemberRole,
+  updateMemberAccountStatus,
+  sendMemberPasswordResetEmail,
+  resetMemberPassword,
 };

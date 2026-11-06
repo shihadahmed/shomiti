@@ -15,12 +15,18 @@ const optionalText = (chain, max = 160) => chain
 
 const NID_PATTERN = /^\d{10}$|^\d{13}$|^\d{17}$/;
 
+const ASSIGNABLE_SYSTEM_ROLES = Object.values(ROLES).filter(
+  (role) => role !== ROLES.SUPER_ADMIN,
+);
+
 const validateRoleExists = async (value) => {
-  const role = await Role.findOne({ name: value });
-  if (!role) {
+  if (value === ROLES.SUPER_ADMIN) {
     throw new Error('validation.enum');
   }
-  if (value === ROLES.SUPER_ADMIN) {
+  // Built-in roles are always valid, even before the Role collection is seeded.
+  if (ASSIGNABLE_SYSTEM_ROLES.includes(value)) return true;
+  const role = await Role.findOne({ name: value });
+  if (!role) {
     throw new Error('validation.enum');
   }
   return true;
@@ -115,11 +121,15 @@ const memberFields = (optional = false) => {
 
 export const createMemberRules = [
   ...memberFields(false),
+  // Registration always creates an ordinary member. Roles are assigned later
+  // from the Members module by a Super Admin.
+  body('role').optional({ values: 'falsy' }).equals(ROLES.MEMBER).withMessage('validation.enum'),
 ];
 
 export const updateMemberRules = [
   ...memberFields(true),
   param('id').isMongoId().withMessage('validation.identifier'),
+  body('role').not().exists().withMessage('validation.enum'),
 ];
 
 export const listMemberRules = [
@@ -138,4 +148,12 @@ export const updateMemberRoleRules = [
     .notEmpty().withMessage('validation.required')
     .custom(validateRoleExists)
     .withMessage('validation.enum'),
+];
+
+export const updateMemberAccountStatusRules = [
+  param('id').isMongoId().withMessage('validation.identifier'),
+  body('isActive')
+    .isBoolean()
+    .withMessage('validation.boolean')
+    .toBoolean(),
 ];

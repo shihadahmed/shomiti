@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
-import { requireRoles, requireStaff, requirePermission } from '../middleware/authorize.js';
+import { requireRoles, requireStaff } from '../middleware/authorize.js';
 import { validate } from '../middleware/validate.js';
 import { uploadSingle } from '../middleware/upload.js';
 import { ROLES } from '../config/constants.js';
@@ -10,6 +10,7 @@ import {
   listMemberRules,
   memberIdParam,
   updateMemberRoleRules,
+  updateMemberAccountStatusRules,
 } from '../validators/member.validator.js';
 import * as memberController from '../controllers/member.controller.js';
 
@@ -45,13 +46,35 @@ router.patch(
   validate,
   memberController.updateMember,
 );
-// Role assignment for member
+// Role and portal-access management for members. Only a Super Admin may
+// change the authentication record behind a member.
 router.patch(
   '/:id/role',
-  requireRoles(ROLES.SUPER_ADMIN, ROLES.TREASURER, ROLES.GENERAL_SECRETARY),
+  requireRoles(ROLES.SUPER_ADMIN),
   updateMemberRoleRules,
   validate,
   memberController.updateMemberRole,
+);
+router.patch(
+  '/:id/account-status',
+  requireRoles(ROLES.SUPER_ADMIN),
+  updateMemberAccountStatusRules,
+  validate,
+  memberController.updateMemberAccountStatus,
+);
+router.post(
+  '/:id/reset-password-email',
+  requireRoles(ROLES.SUPER_ADMIN),
+  memberIdParam,
+  validate,
+  memberController.sendMemberPasswordResetEmail,
+);
+router.post(
+  '/:id/reset-password',
+  requireRoles(ROLES.SUPER_ADMIN),
+  memberIdParam,
+  validate,
+  memberController.resetMemberPassword,
 );
 router.delete(
   '/:id',
