@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi, apiDelete, apiPatch } from '@/lib/useApi';
+import { useApi, apiDelete } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import SearchParamSync from '@/components/layout/SearchParamSync';
 import MemberRegistrationForm from '@/components/members/MemberRegistrationForm';
+import MemberAccessModal from '@/components/members/MemberAccessModal';
 import {
   Icon,
   Button,
@@ -20,10 +21,10 @@ import {
   formatMoney,
   formatDate,
   StatusBadge,
+  Badge,
   Pagination,
   SearchInput,
   Modal,
-  Dropdown,
 } from '@/components/ui/common';
 
 const STATUSES = [
@@ -34,6 +35,11 @@ const STATUSES = [
   { value: 'resigned', label: 'Resigned' },
 ];
 
+const formatRole = (role) =>
+  role === 'super_admin'
+    ? 'Super Admin'
+    : String(role || '').replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+
 export default function MembersPage() {
   const router = useRouter();
   const { tr, lang } = useLang();
@@ -43,7 +49,6 @@ export default function MembersPage() {
   const hasRole = useAuthStore((state) => state.hasRole);
 
   const isSuperAdmin = hasRole('super_admin');
-  const isExecutive = hasRole('super_admin', 'president', 'general_secretary', 'treasurer');
 
   const [mounted, setMounted] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -53,28 +58,9 @@ export default function MembersPage() {
   const [editingMember, setEditingMember] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  // Role assignment modal state
-  const [showRoleModal, setShowRoleModal] = useState(false);
-  const [roleMember, setRoleMember] = useState(null);
-  const [roleForm, setRoleForm] = useState({ role: '' });
-  const [roleSubmitting, setRoleSubmitting] = useState(false);
-  const [roleError, setRoleError] = useState(null);
-
-  // Fetch roles for role assignment
-  const { data: rolesApiData } = useApi(
-    '/roles',
-    { limit: 100 },
-    { enabled: isAuthenticated && isExecutive }
-  );
-
-  const roleOptions = useMemo(() => {
-    const dbRoles = rolesApiData?.items || [];
-    if (!dbRoles.length) return [];
-    return dbRoles.map((r) => ({
-      value: r.name,
-      label: r.name === 'super_admin' ? 'Super Admin' : r.name.replace(/_/g, ' ').toUpperCase(),
-    }));
-  }, [rolesApiData]);
+  // Portal access panel (Super Admin only)
+  const [accessMember, setAccessMember] = useState(null);
+  const [showAccessModal, setShowAccessModal] = useState(false);
 
   const queryParams = useMemo(() => ({
     page,
@@ -151,28 +137,15 @@ export default function MembersPage() {
     }
   };
 
-  // Role assignment functions
-  const openRoleModal = (member) => {
-    setRoleMember(member);
-    setRoleForm({ role: member.user?.role || 'member' });
-    setRoleError(null);
-    setShowRoleModal(true);
+  // Portal access functions
+  const openAccessModal = (member) => {
+    setAccessMember(member);
+    setShowAccessModal(true);
   };
 
-  const handleRoleSubmit = async (e) => {
-    e.preventDefault();
-    setRoleError(null);
-    setRoleSubmitting(true);
-    try {
-      await apiPatch(`/members/${roleMember._id}/role`, { role: roleForm.role });
-      toast.success(tr('toast.roleUpdated') || 'Member role updated successfully');
-      setShowRoleModal(false);
-      reload();
-    } catch (err) {
-      setRoleError(err?.message || tr('error.generic'));
-    } finally {
-      setRoleSubmitting(false);
-    }
+  const closeAccessModal = () => {
+    setShowAccessModal(false);
+    setAccessMember(null);
   };
 
   if (!mounted || checking) {
@@ -200,14 +173,24 @@ export default function MembersPage() {
           title={tr('members.title') || 'Shodoshsho Talika'}
           subtitle={tr('members.subtitle') || 'Somitir shokol nibondhito shodoshsho o tader shonchoy profile'}
         />
-        {canManageMembers?.() && (
-          <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isSuperAdmin && (
+            <Link
+              href="/roles"
+              className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-800 transition hover:bg-brand-50"
+              title={tr('members.rolesAndPermissionsHint')}
+            >
+              <Icon name="shield" className="h-4 w-4" />
+              {tr('members.rolesAndPermissions')}
+            </Link>
+          )}
+          {canManageMembers?.() && (
             <Button variant="primary" onClick={openAdd} className="shadow-xs">
               <Icon name="plus" className="h-4 w-4 mr-1.5" />
               {tr('members.add') || 'Notun Shodoshsho Jog Korun'}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="mb-6 rounded-2xl border border-brand-200/80 bg-white p-4 shadow-xs">
@@ -272,6 +255,7 @@ export default function MembersPage() {
                     <th scope="col" className="px-4 py-3.5">{tr('members.joinDate')}</th>
                     <th scope="col" className="px-5 py-3.5 text-right">{tr('members.savings')}</th>
                     <th scope="col" className="px-4 py-3.5">{tr('members.status')}</th>
+                    <th scope="col" className="px-4 py-3.5">{tr('members.access.role')}</th>
                     <th scope="col" className="px-5 py-3.5 text-right">{tr('members.actions')}</th>
                   </tr>
                 </thead>
@@ -317,6 +301,23 @@ export default function MembersPage() {
                           <StatusBadge status={member.status} />
                         </td>
 
+                        <td className="whitespace-nowrap px-4 py-3.5">
+                          {member.user ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="text-[11px] font-bold uppercase tracking-wide text-brand-800">
+                                {formatRole(member.user.role)}
+                              </span>
+                              <Badge variant={member.user.isActive ? 'badge-green' : 'badge-red'}>
+                                {member.user.isActive
+                                  ? tr('members.access.enabled')
+                                  : tr('members.access.disabled')}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <Badge variant="warning">{tr('members.access.accountMissing')}</Badge>
+                          )}
+                        </td>
+
                         <td className="whitespace-nowrap px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <Link
@@ -337,21 +338,15 @@ export default function MembersPage() {
                                   >
                                     <Icon name="pencilLine" className="h-3.5 w-3.5" />
                                   </button>
-                                  {isExecutive && member.userId && (
-                                    <Dropdown
-                                      trigger={
-                                        <button
-                                          type="button"
-                                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-brand-200 bg-white text-brand-600 transition hover:bg-brand-50 hover:text-brand-900"
-                                          title={tr('members.changeRole') || 'Change Role'}
-                                        >
-                                          <Icon name="userCog" className="h-3.5 w-3.5" />
-                                        </button>
-                                      }
-                                      items={[
-                                        { label: tr('members.changeRole'), onClick: () => openRoleModal(member), icon: 'userCog' },
-                                      ]}
-                                    />
+                                  {isSuperAdmin && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openAccessModal(member)}
+                                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-brand-200 bg-white text-brand-600 transition hover:bg-brand-50 hover:text-brand-900"
+                                      title={tr('members.access.manage')}
+                                    >
+                                      <Icon name="userCog" className="h-3.5 w-3.5" />
+                                    </button>
                                   )}
                                   <button
                                     type="button"
@@ -399,43 +394,16 @@ export default function MembersPage() {
         </Modal>
       )}
 
-      {/* Role Assignment Modal */}
-      <Modal
-        isOpen={showRoleModal}
-        onClose={() => setShowRoleModal(false)}
-        title={tr('members.changeRole') || 'Change Member Role'}
-        size="md"
-      >
-        <form onSubmit={handleRoleSubmit} className="py-2 space-y-4">
-          {roleError && (
-            <div className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700 flex items-center gap-2">
-              <Icon name="alert" className="h-4 w-4" />
-              {roleError}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-brand-800 mb-1.5">
-              {tr('users.role') || 'Role'}
-            </label>
-            <Select
-              value={roleForm.role}
-              onChange={(e) => setRoleForm({ ...roleForm, role: e.target.value })}
-              options={roleOptions}
-              required
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-brand-200">
-            <Button type="button" variant="secondary" onClick={() => setShowRoleModal(false)}>
-              {tr('common.cancel')}
-            </Button>
-            <Button type="submit" variant="primary" loading={roleSubmitting}>
-              {tr('common.save')}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Portal access & role management (Super Admin only) */}
+      <MemberAccessModal
+        isOpen={showAccessModal}
+        member={accessMember}
+        onClose={closeAccessModal}
+        onUpdated={() => {
+          closeAccessModal();
+          reload();
+        }}
+      />
     </AppShell>
   );
 }
