@@ -6,13 +6,15 @@ import Member from '../models/Member.js';
 import SavingsScheme from '../models/SavingsScheme.js';
 import { ensureChartOfAccounts } from '../services/ledger.service.js';
 import { hashPassword } from '../utils/password.js';
-import { ROLES, BUSINESS_RULES, SAVINGS_TYPES } from '../config/constants.js';
+import { nextDocNo } from '../utils/sequence.js';
+import { ROLES, BUSINESS_RULES, SAVINGS_TYPES, MEMBER_STATUS } from '../config/constants.js';
 
 const DEFAULT_USERS = [
   {
     name: 'Super Administrator',
     email: process.env.SEED_ADMIN_EMAIL || 'admin@shomiti.local',
     phone: process.env.SEED_ADMIN_PHONE || '01700000000',
+    nid: process.env.SEED_ADMIN_NID || '9000000001',
     password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',
     role: ROLES.SUPER_ADMIN,
   },
@@ -20,6 +22,7 @@ const DEFAULT_USERS = [
     name: 'Treasurer',
     email: process.env.SEED_TREASURER_EMAIL || 'treasurer@shomiti.local',
     phone: process.env.SEED_TREASURER_PHONE || '01700000001',
+    nid: process.env.SEED_TREASURER_NID || '9000000002',
     password: process.env.SEED_TREASURER_PASSWORD || 'Treasurer@12345',
     role: ROLES.TREASURER,
   },
@@ -27,6 +30,7 @@ const DEFAULT_USERS = [
     name: 'General Secretary',
     email: process.env.SEED_GS_EMAIL || 'gs@shomiti.local',
     phone: process.env.SEED_GS_PHONE || '01700000002',
+    nid: process.env.SEED_GS_NID || '9000000003',
     password: process.env.SEED_GS_PASSWORD || 'GS@12345',
     role: ROLES.GENERAL_SECRETARY,
   },
@@ -34,10 +38,67 @@ const DEFAULT_USERS = [
     name: 'President',
     email: process.env.SEED_PRESIDENT_EMAIL || 'president@shomiti.local',
     phone: process.env.SEED_PRESIDENT_PHONE || '01700000003',
+    nid: process.env.SEED_PRESIDENT_NID || '9000000004',
     password: process.env.SEED_PRESIDENT_PASSWORD || 'President@12345',
     role: ROLES.PRESIDENT,
   },
 ];
+
+/** Allocates a member code, retrying if a manually inserted row already used it. */
+async function allocateMemberCode(date) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = await nextDocNo('SOM', 'member', { date });
+    const exists = await Member.exists({ code });
+    if (!exists) return code;
+  }
+  throw new Error('Could not allocate a unique member code.');
+}
+
+/**
+ * Ensures every staff login also has a linked Member profile, so the Members
+ * module remains the only place where roles and portal access are managed.
+ */
+async function ensureMemberForUser(user, userData) {
+  let member = await Member.findOne({ userId: user._id });
+
+  if (!member) {
+    const or = [{ phone: user.phone }];
+    if (user.email) or.push({ email: user.email });
+    if (user.nid) or.push({ nid: user.nid });
+    member = await Member.findOne({ $or: or });
+  }
+
+  if (member) {
+    if (!member.userId) {
+      member.userId = user._id;
+      await member.save();
+    }
+    if (!user.memberId) {
+      user.memberId = member._id;
+      await user.save();
+    }
+    return member;
+  }
+
+  const joinDate = user.createdAt || new Date();
+  member = await Member.create({
+    code: await allocateMemberCode(joinDate),
+    fullName: user.name,
+    phone: user.phone,
+    email: user.email || undefined,
+    nid: user.nid || userData.nid,
+    joinDate,
+    status: MEMBER_STATUS.ACTIVE,
+    shareCount: 1,
+    createdBy: user._id,
+    notes: 'Staff profile created by seed.',
+  });
+
+  user.memberId = member._id;
+  await user.save();
+
+  return member;
+}
 
 const FIXED_SCHEMES = [
   {
@@ -76,16 +137,16 @@ async function seed() {
   await ensureChartOfAccounts();
   console.info('[seed] chart of accounts ready');
 
-  // Ensure memberId is not required for system users (they may not be cooperative members)
-  // System users are created without memberId and can be linked to members later if needed
-
+  // Every staff login is backed by a Member profile. This keeps role and
+  // portal-access management inside the Members module.
   for (const userData of DEFAULT_USERS) {
-    const existing = await User.findOne({ email: userData.email });
-    if (!existing) {
-      await User.create({
+    let user = await User.findOne({ email: userData.email });
+    if (!user) {
+      user = await User.create({
         name: userData.name,
         email: userData.email,
         phone: userData.phone,
+        nid: userData.nid,
         role: userData.role,
         passwordHash: await hashPassword(userData.password),
         status: 'active',
@@ -95,6 +156,8 @@ async function seed() {
     } else {
       console.info(`[seed] ${userData.role} already exists: ${userData.email}`);
     }
+
+    await ensureMemberForUser(user, userData);
   }
 
   for (const scheme of FIXED_SCHEMES) {

@@ -10,6 +10,7 @@
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
     "migrate:create-users": "node src/scripts/migrate-create-users-for-members.js",
+    "migrate:create-members": "node src/scripts/migrate-create-members-for-users.js",
     "test": "node --test --test-concurrency=1 tests/*.test.js"
   },
   "engines": {
