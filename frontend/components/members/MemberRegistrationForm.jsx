@@ -3,8 +3,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useLang } from '@/lib/useLang';
-import { useApi, apiPost, apiPatch, apiUpload } from '@/lib/useApi';
+import { apiPost, apiPatch, apiUpload } from '@/lib/useApi';
 import { Icon, Button, Input, Select } from '@/components/ui/common';
+
+/** Renders a stored address (text or structured object) as a single line. */
+function addressToText(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return (
+    value.fullAddress ||
+    [value.village, value.postOffice, value.upazila, value.district].filter(Boolean).join(', ')
+  );
+}
 
 export default function MemberRegistrationForm({
   initialData = null,
@@ -13,37 +23,6 @@ export default function MemberRegistrationForm({
 }) {
   const { tr } = useLang();
   const [submitting, setSubmitting] = useState(false);
-
-  // Fetch dynamic system roles
-  const { data: rolesApiData, loading: rolesLoading } = useApi(
-    '/roles',
-    { limit: 100 },
-    { enabled: true }
-  );
-
-  const roleOptions = useMemo(() => {
-    const dbRoles = rolesApiData?.items || [];
-    const defaultRoles = [
-      { name: 'member', description: 'General Member' },
-      { name: 'treasurer', description: 'Treasurer' },
-      { name: 'general_secretary', description: 'General Secretary' },
-      { name: 'president', description: 'President' },
-    ];
-
-    const mergedRoles = [...dbRoles];
-    for (const defRole of defaultRoles) {
-      if (!mergedRoles.some((r) => r.name === defRole.name)) {
-        mergedRoles.push(defRole);
-      }
-    }
-
-    return mergedRoles.map((r) => ({
-      value: r.name,
-      label: r.name
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (char) => char.toUpperCase()),
-    }));
-  }, [rolesApiData]);
 
   // Relationship options with translation keys
   const relationshipOptions = useMemo(() => [
@@ -72,7 +51,6 @@ export default function MemberRegistrationForm({
     sameAsPresent: false,
     photo: null,
     nidDocument: null,
-    role: 'member',
     nominees: [
       {
         name: '',
@@ -171,17 +149,19 @@ export default function MemberRegistrationForm({
         fullNameBn: initialData.fullNameBn || '',
         fatherHusbandName: initialData.fatherHusbandName || '',
         motherName: initialData.motherName || '',
-        dob: initialData.dob ? initialData.dob.split('T')[0] : '',
+        dob: (initialData.dateOfBirth || initialData.dob)
+          ? String(initialData.dateOfBirth || initialData.dob).split('T')[0]
+          : '',
         nid: initialData.nid || '',
         phone: initialData.phone || '',
         email: initialData.email || '',
         occupation: initialData.occupation || '',
-        presentAddress: initialData.presentAddress || '',
-        permanentAddress: initialData.permanentAddress || '',
-        sameAsPresent: initialData.presentAddress === initialData.permanentAddress,
+        presentAddress: addressToText(initialData.presentAddress),
+        permanentAddress: addressToText(initialData.permanentAddress),
+        sameAsPresent:
+          addressToText(initialData.presentAddress) === addressToText(initialData.permanentAddress),
         photo: initialData.photo || null,
         nidDocument: initialData.nidDocument || null,
-        role: initialData.role || initialData.user?.role || 'member',
         nominees: initialData.nominees?.length
           ? initialData.nominees.map((n) => ({
               name: n.name || '',
@@ -190,7 +170,7 @@ export default function MemberRegistrationForm({
               nid: n.nid || '',
               dob: n.dob ? n.dob.split('T')[0] : '',
               phone: n.phone || '',
-              address: n.address || '',
+              address: addressToText(n.address),
               percentage: n.percentage || 0,
               photo: n.photo || null,
               nidDocument: n.nidDocument || null,
@@ -344,12 +324,14 @@ export default function MemberRegistrationForm({
 
     setSubmitting(true);
     try {
+      const { dob, ...rest } = formData;
+      const payload = { ...rest, dateOfBirth: dob || undefined };
       let result;
       if (initialData?._id) {
-        result = await apiPatch(`/members/${initialData._id}`, formData);
+        result = await apiPatch(`/members/${initialData._id}`, payload);
         toast.success(tr('toast.memberUpdated'));
       } else {
-        result = await apiPost('/members', formData);
+        result = await apiPost('/members', payload);
         toast.success(tr('toast.memberCreated'));
       }
 
@@ -508,14 +490,6 @@ export default function MemberRegistrationForm({
             placeholder={tr('members.occupation.placeholder')}
             value={formData.occupation}
             onChange={(e) => handleInputChange('occupation', e.target.value)}
-          />
-          <Select
-            label={tr('members.role')}
-            options={roleOptions}
-            value={formData.role}
-            onChange={(e) => handleInputChange('role', e.target.value)}
-            disabled={rolesLoading}
-            required
           />
         </div>
       </div>
