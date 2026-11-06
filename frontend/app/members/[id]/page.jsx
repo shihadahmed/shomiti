@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useLang } from '@/lib/useLang';
 import { useAuthStore } from '@/lib/auth';
-import { useApi, apiPost } from '@/lib/useApi';
+import { useApi } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
+import MemberAccessModal from '@/components/members/MemberAccessModal';
 import {
   Icon,
+  Badge,
   Button,
   StatusBadge,
   PageHeader,
@@ -16,7 +18,6 @@ import {
   formatMoney,
   formatDate,
 } from '@/components/ui/common';
-import { toast } from 'react-toastify';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'user' },
@@ -32,11 +33,13 @@ export default function MemberProfilePage() {
   const { tr, lang } = useLang();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const canManageMembers = useAuthStore((state) => state.canManageMembers);
+  const hasRole = useAuthStore((state) => state.hasRole);
+  const isSuperAdmin = hasRole('super_admin');
 
   const memberId = params?.id;
   const [activeTab, setActiveTab] = useState('overview');
   const [mounted, setMounted] = useState(false);
-  const [sendingReset, setSendingReset] = useState(false);
+  const [showAccessModal, setShowAccessModal] = useState(false);
 
   const { data: memberResponse, loading, error, reload } = useApi(
     `/members/${memberId}`,
@@ -48,6 +51,9 @@ export default function MemberProfilePage() {
     if (!memberResponse) return null;
     return memberResponse.member || memberResponse.data || memberResponse;
   }, [memberResponse]);
+
+  // The API returns the linked login account next to the member record.
+  const memberUser = memberResponse?.user || member?.user || null;
 
   const { data: savingsData } = useApi(
     `/members/${memberId}/savings`,
@@ -76,23 +82,6 @@ export default function MemberProfilePage() {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const handleSendResetEmail = useCallback(async () => {
-    if (!member?.email) {
-      toast.warning('Member does not have an email address associated.');
-      return;
-    }
-
-    setSendingReset(true);
-    try {
-      await apiPost(`/members/${memberId}/reset-password-email`, {});
-      toast.success('Password setup and reset email sent successfully.');
-    } catch (err) {
-      toast.error(err?.message || 'Failed to dispatch password reset email.');
-    } finally {
-      setSendingReset(false);
-    }
-  }, [member?.email, memberId]);
 
   if (!mounted || loading) {
     return (
@@ -135,8 +124,7 @@ export default function MemberProfilePage() {
   };
 
   const memberName = lang === 'bn' && member.fullNameBn ? member.fullNameBn : member.fullName;
-  const memberStatus = member.status || 'active';
-  const memberRole = member.user?.role || member.role || 'member';
+  const memberRole = memberUser?.role || member.role || 'member';
 
   const renderOverview = () => (
     <div className="space-y-6">
@@ -300,51 +288,62 @@ export default function MemberProfilePage() {
         </div>
       </div>
 
-      {/* 3. USER ACCESS & RESET PASSWORD EMAIL DISPATCH */}
+      {/* 3. PORTAL ACCOUNT & ACCESS CONTROL */}
       <div className="rounded-2xl border border-brand-200/80 bg-white p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-brand-100 pb-3 mb-4 gap-3">
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-brand-900">
-              System Access & Security
+              {tr('members.access.securityTitle')}
             </h4>
-            <p className="text-xs text-brand-500">Manage portal account credentials and password recovery</p>
+            <p className="text-xs text-brand-500">{tr('members.access.securitySubtitle')}</p>
           </div>
 
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={!member.email || sendingReset}
-            onClick={handleSendResetEmail}
-            className="text-xs font-semibold shrink-0"
-          >
-            <Icon name="mail" className="h-3.5 w-3.5 mr-1.5" />
-            {sendingReset ? 'Sending Email...' : 'Send Password Reset Email'}
-          </Button>
+          {isSuperAdmin && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowAccessModal(true)}
+              className="text-xs font-semibold shrink-0"
+            >
+              <Icon name="userCog" className="h-3.5 w-3.5 mr-1.5" />
+              {tr('members.access.manage')}
+            </Button>
+          )}
         </div>
 
-        {!member.email && (
+        {!memberUser && (
           <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200 mb-4">
-            Notice: No email registered for this member. Password setup emails can only be dispatched to profiles with a valid email.
+            {tr('members.access.accountMissingNotice')}
           </p>
         )}
 
-        <dl className="space-y-3 text-sm grid sm:grid-cols-3 gap-4">
+        <dl className="space-y-3 text-sm grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <dt className="text-brand-500 text-xs font-semibold uppercase">Account Status</dt>
+            <dt className="text-brand-500 text-xs font-semibold uppercase">{tr('members.access.accountStatus')}</dt>
             <dd className="mt-1 font-medium text-brand-900">
-              <StatusBadge status={member.user?.status || (member.userId ? 'active' : 'invited')} />
+              <StatusBadge status={memberUser?.status || (memberUser ? 'active' : 'invited')} />
             </dd>
           </div>
           <div>
-            <dt className="text-brand-500 text-xs font-semibold uppercase">Designation / Role</dt>
+            <dt className="text-brand-500 text-xs font-semibold uppercase">{tr('members.access.role')}</dt>
             <dd className="mt-1 font-bold text-brand-800 uppercase tracking-wide">
               {memberRole.replace(/_/g, ' ')}
             </dd>
           </div>
           <div>
-            <dt className="text-brand-500 text-xs font-semibold uppercase">Last Login Activity</dt>
+            <dt className="text-brand-500 text-xs font-semibold uppercase">{tr('members.access.portalAccess')}</dt>
+            <dd className="mt-1">
+              <Badge variant={memberUser?.isActive === false ? 'badge-red' : 'badge-green'}>
+                {memberUser?.isActive === false
+                  ? tr('members.access.disabled')
+                  : tr('members.access.enabled')}
+              </Badge>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-brand-500 text-xs font-semibold uppercase">{tr('members.lastLogin')}</dt>
             <dd className="mt-1 text-brand-700">
-              {member.user?.lastLoginAt ? formatDate(member.user.lastLoginAt) : 'Never Logged In'}
+              {memberUser?.lastLoginAt ? formatDate(memberUser.lastLoginAt) : tr('members.access.neverLoggedIn')}
             </dd>
           </div>
         </dl>
@@ -666,6 +665,16 @@ export default function MemberProfilePage() {
       <div className="rounded-b-2xl border border-brand-200/80 bg-white p-6 shadow-xs">
         {renderTabContent()}
       </div>
+
+      <MemberAccessModal
+        isOpen={showAccessModal}
+        member={{ ...member, user: memberUser }}
+        onClose={() => setShowAccessModal(false)}
+        onUpdated={() => {
+          setShowAccessModal(false);
+          reload();
+        }}
+      />
     </AppShell>
   );
 }
