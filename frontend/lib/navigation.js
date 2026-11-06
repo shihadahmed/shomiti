@@ -135,13 +135,6 @@ const NAV_SECTIONS = [
         roles: ['super_admin', 'treasurer', 'general_secretary'],
       },
       {
-        href: '/users',
-        label: 'nav.users',
-        defaultTitle: 'Users & Roles',
-        icon: 'shield',
-        roles: ['super_admin'],
-      },
-      {
         href: '/reports',
         label: 'nav.reports',
         defaultTitle: 'Reports',
