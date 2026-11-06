@@ -29,7 +29,6 @@ frontend/
 │   ├── meetings/
 │   ├── reports/
 │   ├── audit/
-│   ├── users/
 │   ├── roles/
 │   ├── settings/
 │   ├── payments/              # member portal: pay now, offline payment
@@ -48,8 +47,7 @@ frontend/
 │   └── ui/
 │       ├── common.jsx         # Icon, Button, Table, Modal, Badge, ...
 │       ├── form.jsx           # form sections and actions
-│       ├── RoleModal.jsx
-│       └── UserEditModal.jsx
+│       └── RoleModal.jsx
 ├── lib/
 │   ├── api.js                 # Axios client + interceptors
 │   ├── auth.js                # Zustand auth store and helpers
@@ -119,7 +117,7 @@ The app runs on http://localhost:3000. API calls to `/api/*` are proxied to the 
 1. **Core** — Dashboard
 2. **Finance & Operations** — Savings & Schemes, Expenses, General Ledger, Approvals (pending badge)
 3. **Communication & Assets** — Meetings & Notices, Document Vault
-4. **System & Insights** — Members, Users & Roles, Reports, Audit Logs, Settings
+4. **System & Insights** — Members, Reports, Audit Logs, Settings
 
 Role visibility (staff):
 
@@ -133,7 +131,6 @@ Role visibility (staff):
 | Meetings & Notices | yes | no | yes | no |
 | Document Vault | yes | yes | yes | yes |
 | Members | yes | yes | yes | no |
-| Users & Roles | yes | no | no | no |
 | Reports | yes | yes | yes | yes |
 | Audit Logs | yes | no | no | no |
 | Settings | yes | yes | yes | no |
@@ -141,6 +138,15 @@ Role visibility (staff):
 The `member` role gets its own items inside the same four sections (my savings, my schemes, my dues, pay now, offline payment, my documents, certificate, profile, statement, notifications).
 
 Labels resolve through `navLabel()`, which falls back to a readable title when a translation key is missing, so raw keys never appear in the UI. Collapsed sidebar state is handled by `AppShell` and `SidebarV2` (icon-only mode with tooltips).
+
+## Member access management
+
+There is no standalone user-management screen. Every member owns exactly one portal login, and the Members module is the only place where that account is managed:
+
+- Registering a member automatically creates the linked login. Members without an email still get an account and sign in by phone.
+- A Super Admin opens **Manage Access** from the member row or profile to change the role, enable/disable portal access, send a password reset email, or issue a temporary password.
+- Registration never assigns an elevated role; new members start as `member`.
+- `/roles` defines the permission sets behind each role and is linked from the Members page.
 
 ## Internationalization
 
@@ -153,7 +159,7 @@ Labels resolve through `navLabel()`, which falls back to a readable title when a
 | Route | Purpose |
 | --- | --- |
 | `/dashboard` | KPIs, recent transactions, quick actions |
-| `/members` | Member registry (add/edit/suspend) |
+| `/members` | Member registry; roles and portal access are managed here |
 | `/savings` | Savings accounts and transactions |
 | `/savings/dues` | Due list and collection |
 | `/savings/config` | Savings configuration |
@@ -165,9 +171,8 @@ Labels resolve through `navLabel()`, which falls back to a readable title when a
 | `/meetings` | Meetings, notices and resolutions |
 | `/reports` | Financial reports and exports |
 | `/audit` | Audit trail |
-| `/users` | Staff and member accounts |
-| `/roles` | Custom roles and permissions |
-| `/settings` | General settings, user management, audit |
+| `/roles` | Role definitions and permissions (Super Admin) |
+| `/settings` | General settings and audit |
 | `/payments`, `/payments/offline` | Member payments |
 | `/profile`, `/statement`, `/certificate`, `/notifications` | Member portal |
 | `/login`, `/reset-password` | Authentication |

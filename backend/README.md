@@ -100,6 +100,8 @@ Full configuration reference:
 | `npm run dev` | Start with `node --watch` (auto reload) |
 | `npm start` | Start once (production) |
 | `npm run seed` | Seed users, savings schemes and chart of accounts |
+| `npm run migrate:create-members` | Backfill a Member profile for staff users without one |
+| `npm run migrate:create-users` | Backfill a login account for members without one |
 | `npm test` | Run integration tests (`node --test`) |
 
 ## Startup and seeding
@@ -108,7 +110,7 @@ Full configuration reference:
 
 1. Connects to MongoDB.
 2. Initializes default system roles (if the role collection is empty).
-3. Seeds default users (only if missing), fixed savings schemes and the chart of accounts.
+3. Seeds default users (only if missing), a linked Member profile for each staff login, fixed savings schemes and the chart of accounts.
 4. Starts the HTTP server.
 
 Seeding is idempotent: existing users are never overwritten. Deleting a user and restarting the backend recreates the default account with the password from `.env`.
@@ -119,8 +121,8 @@ Base URL: `http://localhost:4000/api`
 
 | Prefix | Domain |
 | --- | --- |
-| `/auth` | Login, logout, session, password change/setup, user management |
-| `/members` | Member registry and profiles |
+| `/auth` | Login, logout, session, password change/setup, KYC review |
+| `/members` | Member registry, profiles and portal access |
 | `/savings` | Savings accounts, transactions, dues, payment slips |
 | `/schemes` | Savings schemes and enrollments |
 | `/approvals` | Pending approval requests and slip verification |
@@ -180,6 +182,23 @@ Error:
 { "success": false, "error": { "code": "INVALID_CREDENTIALS", "message": "...", "details": [] } }
 ```
 
+### Member access management
+
+Every member owns exactly one portal login. Admin user-management endpoints (`/api/auth/users/*` other than KYC) were removed; account role and access changes go through the member record:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/members` | Rows include `user: { role, isActive, status, lastLoginAt, mustChangePassword }` |
+| GET | `/api/members/:id` | Returns `{ member, user, accounts, transactions }` |
+| POST | `/api/members` | Creates the member, savings account and login; new members are always `member` |
+| PATCH | `/api/members/:id` | Profile updates; rejects any `role` field with `422` |
+| PATCH | `/api/members/:id/role` | Super Admin only; updates the linked `User.role` |
+| PATCH | `/api/members/:id/account-status` | Super Admin only; enables/disables the login and revokes sessions |
+| POST | `/api/members/:id/reset-password-email` | Super Admin only; sends a setup link to the email on file |
+| POST | `/api/members/:id/reset-password` | Super Admin only; returns a one-time temporary password |
+
+Registration always provisions a login, even without an email. Email-less members sign in by phone after a Super Admin issues a temporary password. `PATCH /api/members/:id` also keeps the linked login's name, email, phone and NID in sync with the member profile.
+
 ### Roles and permissions
 
 System roles: `super_admin`, `president`, `general_secretary`, `treasurer`, `member`.
@@ -191,7 +210,8 @@ Super Admin protections:
 - A `super_admin` account cannot be deleted (self-deletion is also blocked).
 - The `super_admin` role cannot be deleted; all system-locked roles are protected from deletion.
 - The `super_admin` role is excluded from role listings.
-- The `super_admin` role cannot be assigned through the user role-update endpoint.
+- The `super_admin` role cannot be assigned or removed through member endpoints, and self role/status changes are blocked.
+- The last active Super Admin cannot be disabled.
 
 ## Testing
 

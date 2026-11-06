@@ -380,10 +380,9 @@ Legend — **R** = required roles. `SA` super_admin, `T` treasurer, `GS` general
 |---|---|---|---|
 | `/dashboard` | Role-specific KPI dashboard | all | `/dashboard/summary`, `/dashboard/trend` |
 | `/members` | Member registry, search, filter | SA T GS P | `/members` |
-| `/members/add` | Create member | SA T | `POST /members` |
-| `/members/[id]` | Member profile, accounts, nominees | SA T GS P | `/members/:id` |
+| `/members/add` | Create member (login is provisioned automatically) | SA T | `POST /members` |
+| `/members/[id]` | Member profile, accounts, nominees, portal access | SA T GS P | `/members/:id` |
 | `/members/[id]/edit` | Edit member | SA T GS | `PATCH /members/:id` |
-| `/users` | User administration | SA | `/users` |
 | `/roles` | Role & permission matrix | SA | `/roles` |
 | `/savings` | Transactions ledger view | SA T GS P | `/savings/transactions` |
 | `/savings/dues` | Dues generation & payment | SA T GS | `/savings/dues` |
@@ -625,8 +624,9 @@ All collections use `timestamps: true`. IDs are Mongo `ObjectId`. Money fields e
 | `phone` | string | unique, required |
 | `passwordHash` | string | `select: false` |
 | `role` | enum | indexed |
-| `member` | ObjectId → Member | null for staff |
+| `memberId` | ObjectId → Member | unique sparse; every member owns exactly one login |
 | `isActive` | bool | default true |
+| `status` | enum | `invited`, `pending_kyc`, `under_review`, `active`, `rejected` |
 | `mustChangePassword` | bool | |
 | `tokenVersion` | number | `select: false` |
 | `lastLoginAt`, `passwordChangedAt` | Date | |
@@ -1259,7 +1259,7 @@ The migration is complete when **all** of the following hold:
 | `app/expenses/page.jsx` | `app/(app)/expenses/**` | Kept + create/categories |
 | `app/ledger/page.jsx` | `app/(app)/ledger/page.tsx` | Kept |
 | `app/documents/page.jsx` | `app/(app)/documents/**` | Kept + `/documents/my` |
-| `app/meetings|reports|audit|users|roles|settings|profile|statement|certificate|notifications` | `app/(app)/…` | Kept, typed |
+| `app/meetings|reports|audit|roles|settings|profile|statement|certificate|notifications` | `app/(app)/…` | Kept, typed |
 | `components/layout/AppShell.jsx` | `app/(app)/layout.tsx` + shell components | Split server/client |
 | `lib/auth.js` | `lib/auth.ts` + `lib/session.ts` | Cookie session |
 | `lib/i18n.js` | `lib/i18n/{bn,en}.ts` | Split, typed keys |
