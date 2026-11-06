@@ -5,12 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { Icon, Input, Button } from '@/components/ui/common';
+import { toast } from 'react-toastify';
 
 const FEATURES = [
-  { icon: 'users', key: 'login.featureMembers' },
-  { icon: 'wallet', key: 'login.featureSavings' },
-  { icon: 'shield', key: 'login.featureApprovals' },
-  { icon: 'file', key: 'login.featureDocs' },
+  { icon: 'users', key: 'login.featureMembers', fallback: 'Member registry with NID and nominee records' },
+  { icon: 'wallet', key: 'login.featureSavings', fallback: 'Double-entry savings ledger with receipts' },
+  { icon: 'shield', key: 'login.featureApprovals', fallback: 'Multi-level approval gates for every payment' },
+  { icon: 'file', key: 'login.featureDocs', fallback: 'Meeting papers, receipts and photos in one vault' },
 ];
 
 function LoginForm() {
@@ -49,6 +50,7 @@ function LoginForm() {
       }
     } catch (err) {
       console.error('Login submit error:', err);
+      toast.error(err?.message || tr('error.generic'));
     }
   };
 
@@ -69,242 +71,218 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-50 lg:grid lg:grid-cols-[1.05fr_1fr]" suppressHydrationWarning>
-      {/* ───────────────────────── Brand panel ───────────────────────── */}
-      <aside className="auth-gradient relative hidden overflow-hidden text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
-        <span className="auth-glow left-[-90px] top-[-80px] h-64 w-64 bg-gold-300/25" aria-hidden="true" />
-        <span className="auth-glow bottom-[-120px] right-[-80px] h-80 w-80 bg-brand-600/60" aria-hidden="true" />
-        <span className="auth-ring -right-24 top-16 h-72 w-72" aria-hidden="true" />
-        <span className="auth-ring -right-10 top-32 h-96 w-96 border-gold-200/10" aria-hidden="true" />
-        <span className="auth-ring right-16 top-52 h-44 w-44 border-gold-200/20" aria-hidden="true" />
-        <span
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, #E2C475 1px, transparent 1px), linear-gradient(to bottom, #E2C475 1px, transparent 1px)',
-            backgroundSize: '58px 58px',
-            maskImage: 'radial-gradient(ellipse 80% 60% at 30% 10%, #000 20%, transparent 75%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 30% 10%, #000 20%, transparent 75%)',
-          }}
-          aria-hidden="true"
-        />
+    /* Full screen background split */
+    <div className="relative min-h-screen w-full flex flex-col justify-center">
+      {/* Background Color Bars (Full Width 100vw) */}
+      <div className="absolute inset-0 hidden lg:grid lg:grid-cols-[45%_55%] pointer-events-none -z-10">
+        <div className="h-full w-full bg-gradient-to-br from-[#2D151B] via-[#431B25] to-[#1E0D12]" />
+        <div className="h-full w-full bg-[#FAF8F5]" />
+      </div>
 
-        <div className="relative z-10 flex items-center gap-3.5">
-          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur overflow-hidden">
-            <img
-              src="/logo.png"
-              alt=""
-              className="h-full w-full object-cover"
-              aria-hidden="true"
-            />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold leading-tight">{tr('app.name')}</p>
-            <p className="mt-0.5 text-[10px] uppercase tracking-[0.22em] text-gold-200/70">
-              {tr('app.tagline')}
+      {/* Mobile Background Fallback */}
+      <div className="absolute inset-0 lg:hidden bg-[#FAF8F5] -z-10" />
+
+      {/* Centered Fixed Content Container (Max 1600px) */}
+      <div className="w-full max-w-[1600px] mx-auto min-h-screen grid grid-cols-1 lg:grid-cols-[45%_55%]">
+        
+        {/* ─────────────── Left Side: Brand Section ─────────────── */}
+        <aside className="relative hidden lg:flex flex-col justify-between p-12 xl:p-20 text-white overflow-hidden">
+          {/* Subtle Ambient Glow */}
+          <div className="pointer-events-none absolute -left-10 -top-10 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-10 -right-10 h-80 w-80 rounded-full bg-rose-900/30 blur-3xl" />
+
+          {/* Top Brand Header */}
+          <div className="relative z-10 flex items-center gap-3.5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 p-2 ring-1 ring-white/20 backdrop-blur-md">
+              <img src="/logo.png" alt="Logo" className="h-full w-full object-contain" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-bold tracking-tight text-white">
+                {tr('app.name') || 'Shopnonir Somobai Somitee'}
+              </h2>
+              <p className="truncate text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">
+                {tr('app.tagline') || 'MEMBERS · SAVINGS · TRANSPARENCY'}
+              </p>
+            </div>
+          </div>
+
+          {/* Center Brand Text */}
+          <div className="relative z-10 max-w-lg my-auto py-10">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/10 px-3.5 py-1 text-[11px] font-semibold text-amber-200">
+              <Icon name="shield" className="h-3.5 w-3.5 text-amber-300" />
+              <span>{tr('login.secureSession') || 'Secure session · Session protected'}</span>
+            </div>
+
+            <h1 className="text-3xl xl:text-4xl font-extrabold leading-tight tracking-tight text-white">
+              {tr('login.heroTitle')}
+            </h1>
+
+            <p className="mt-4 text-sm leading-relaxed text-rose-100/75">
+              {tr('login.heroText')}
             </p>
+
+            <ul className="mt-8 space-y-3.5">
+              {FEATURES.map((feature) => (
+                <li key={feature.key} className="flex items-center gap-3 text-xs text-rose-50/90 font-medium">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+                    <Icon name={feature.icon} className="h-3.5 w-3.5 text-amber-300" />
+                  </span>
+                  <span>{tr(feature.key)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
 
-        <div className="relative z-10 max-w-xl py-12">
-          <p className="reveal-up mb-5 inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-gold-200/80">
-            <span className="h-px w-7 bg-gradient-to-r from-gold-300 to-transparent" />
-            {tr('login.secure')}
-          </p>
-          <h1
-            className="reveal-up text-balance text-[2.35rem] font-bold leading-[1.12] tracking-tight xl:text-[2.9rem]"
-            style={{ animationDelay: '60ms' }}
-          >
-            {tr('login.heroTitle')}
-          </h1>
-          <p
-            className="reveal-up mt-5 max-w-lg text-[15px] leading-relaxed text-brand-100/75"
-            style={{ animationDelay: '120ms' }}
-          >
-            {tr('login.heroText')}
-          </p>
-
-          <ul className="mt-9 space-y-3.5">
-            {FEATURES.map((feature, index) => (
-              <li
-                key={feature.key}
-                className="reveal-up flex items-center gap-3.5 text-sm text-brand-50/85"
-                style={{ animationDelay: `${160 + index * 60}ms` }}
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/8 ring-1 ring-gold-200/25">
-                  <Icon name={feature.icon} className="h-4 w-4 text-gold-300" />
-                </span>
-                {tr(feature.key)}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="relative z-10 flex items-center justify-between gap-4 text-[11px] text-brand-100/55">
-          <span className="inline-flex items-center gap-2">
-            <Icon name="shield" className="h-4 w-4 text-gold-300/80" />
-            {tr('login.secure')}
-          </span>
-          <span>{tr('login.footer', { year: 2026 })}</span>
-        </div>
-      </aside>
-
-      {/* ───────────────────────── Form panel ───────────────────────── */}
-      <main className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:py-14">
-        <div className="w-full">
-          {/* Mobile brand header */}
-          <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-700 shadow-lg ring-4 ring-brand-100 overflow-hidden">
-              <img
-                src="/logo.png"
-                alt=""
-                className="h-full w-full object-cover"
-                aria-hidden="true"
-              />
+          {/* Footer Note */}
+          <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-4 text-[11px] text-rose-200/60">
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="shield" className="h-3.5 w-3.5 text-amber-400/90" />
+              {tr('login.sslSecured')}
             </span>
-            <div>
-              <p className="text-sm font-semibold leading-tight text-brand-900">{tr('app.name')}</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-brand-500">{tr('app.tagline')}</p>
-            </div>
+            <span>{tr('login.copyright')}</span>
           </div>
+        </aside>
 
-          <div className="rounded-3xl border border-brand-200/70 bg-white/95 p-6 shadow-[0_30px_70px_-40px_rgba(45,21,27,0.55)] backdrop-blur sm:p-9 slide-up">
-            <div className="mb-7">
-              <h2 className="text-[26px] font-bold tracking-tight text-brand-900">{tr('login.welcome')}</h2>
-              <p className="mt-1.5 text-sm text-brand-500">{tr('login.subtitle')}</p>
+        {/* ─────────────── Right Side: Login Form ─────────────── */}
+        <main className="flex items-center justify-center p-6 sm:p-12 lg:p-16">
+          <div className="w-full max-w-[420px]">
+            {/* Mobile Header */}
+            <div className="mb-6 flex flex-col items-center text-center lg:hidden">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#431B25] p-2 shadow-lg ring-4 ring-rose-100">
+                <img src="/logo.png" alt="Logo" className="h-full w-full object-contain" />
+              </div>
+              <h2 className="text-base font-bold text-gray-900">{tr('app.name')}</h2>
+              <p className="text-[10px] uppercase tracking-wider text-gray-500">{tr('app.tagline')}</p>
             </div>
 
-            {error && (
-              <div
-                className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-700 fade-in"
-                role="alert"
-                aria-live="assertive"
-              >
-                <Icon name="alert" className="mt-0.5 h-4.5 w-4.5 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+            {/* Form Title */}
+            <div className="mb-6">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900">
+                {tr('login.welcomeBack') || 'Welcome back'}
+              </h2>
+              <p className="mt-1 text-xs text-gray-500">
+                {tr('login.signInToManage') || 'Sign in to manage your cooperative account'}
+              </p>
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-              <Input
-                id="login-identifier"
-                name="identifier"
-                type="text"
-                label={tr('login.identifier')}
-                placeholder={tr('login.identifierPlaceholder')}
-                autoComplete="username"
-                inputMode="text"
-                value={identifier}
-                onChange={updateIdentifier}
-                disabled={isLoading}
-                required
-                icon={<Icon name="users" className="h-5 w-5" />}
-              />
+            {/* Error Message - using toast instead of inline */}
 
+            {/* Inputs */}
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
+                <label htmlFor="login-identifier" className="mb-1.5 block text-xs font-semibold text-gray-700">
+                  {tr('login.identifierLabel') || 'Email or Phone'}
+                </label>
                 <Input
-                  id="login-password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  label={tr('login.password')}
-                  placeholder={tr('login.passwordPlaceholder')}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={updatePassword}
-                  onKeyUp={detectCapsLock}
-                  onKeyDown={detectCapsLock}
-                  onBlur={() => setCapsLock(false)}
+                  id="login-identifier"
+                  name="identifier"
+                  type="text"
+                  placeholder={tr('login.identifierPlaceholder') || '017XXXXXXXX or name@example.com'}
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={updateIdentifier}
                   disabled={isLoading}
                   required
-                  icon={<Icon name="lock" className="h-5 w-5" />}
-                  trailingIcon={
-                    <button
-                      type="button"
-                      className="rounded-md p-0.5 text-brand-400 transition hover:text-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-700/30"
-                      onClick={() => setShowPassword((value) => !value)}
-                      aria-label={showPassword ? tr('login.hidePassword') : tr('login.showPassword')}
-                      aria-pressed={showPassword}
-                      tabIndex={0}
-                    >
-                      <Icon name="eye" className="h-5 w-5" />
-                    </button>
-                  }
                 />
+              </div>
+
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label htmlFor="login-password" className="text-xs font-semibold text-gray-700">
+                    {tr('login.passwordLabelShort') || 'Password'}
+                  </label>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-[#431B25] hover:underline"
+                    onClick={() => setHelpOpen((prev) => !prev)}
+                  >
+                    {tr('login.forgotPasswordBtn') || 'Forgot password?'}
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={tr('login.passwordPlaceholderShort') || 'Enter your password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={updatePassword}
+                    onKeyUp={detectCapsLock}
+                    onKeyDown={detectCapsLock}
+                    onBlur={() => setCapsLock(false)}
+                    disabled={isLoading}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    tabIndex={-1}
+                  >
+                    <Icon name={showPassword ? 'eyeOff' : 'eye'} className="h-4 w-4" />
+                  </button>
+                </div>
+
                 {capsLock && (
-                  <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-600" role="status">
-                    <Icon name="alert" className="h-3.5 w-3.5" />
-                    Caps Lock is on
+                  <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-amber-600">
+                    <Icon name="alert" className="h-3 w-3" />
+                    {tr('login.capsLockWarning') || 'Caps Lock is ON'}
                   </p>
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  className="text-sm font-medium text-brand-700 transition hover:text-brand-900 hover:underline"
-                  onClick={() => setHelpOpen((value) => !value)}
-                  aria-expanded={helpOpen}
-                >
-                  {tr('login.forgotPassword')}
-                </button>
-              </div>
-
               {helpOpen && (
-                <p className="rounded-xl border border-brand-200 bg-brand-50 px-3.5 py-3 text-xs leading-relaxed text-brand-700 fade-in" role="note">
-                  {tr('login.help')}
-                </p>
+                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs leading-relaxed text-amber-900 font-medium">
+                  {tr('login.helpOpenText') || 'Contact your society Super Admin to issue a temporary password or reset your account credentials.'}
+                </div>
               )}
 
               <Button
                 type="submit"
-                onClick={handleSubmit}
                 variant="primary"
                 size="lg"
-                className="w-full shadow-lg shadow-brand-700/20"
+                className="mt-2 w-full bg-[#431B25] hover:bg-[#32131B] text-white shadow-md shadow-[#431B25]/20"
                 loading={isLoading}
-                loadingLabel={tr('login.signingIn')}
+                loadingLabel={tr('login.signingInBtn') || 'Signing in...'}
               >
-                <span>{tr('login.signIn')}</span>
-                <Icon name="arrowRight" className="h-4 w-4" />
+                <span>{tr('login.signInBtn') || 'Sign in'}</span>
+                <Icon name="arrowRight" className="ml-1.5 h-4 w-4" />
               </Button>
             </form>
 
-            <div className="mt-7 flex items-center justify-between gap-3 border-t border-brand-200/80 pt-5">
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-brand-500">
-                <Icon name="shield" className="h-3.5 w-3.5 text-gold-400" />
-                {tr('login.secure')}
+            {/* Bottom Language & Status Controls */}
+            <div className="mt-8 flex items-center justify-between border-t border-gray-200/70 pt-4 text-xs text-gray-500">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium">
+                <Icon name="shield" className="h-3.5 w-3.5 text-emerald-600" />
+                {tr('login.secureSessionShort') || 'Secure session · Session protected'}
               </span>
 
-              <div
-                className="inline-flex items-center gap-0.5 rounded-full border border-brand-200 bg-brand-50 p-1"
-                role="group"
-                aria-label={tr('shell.language')}
-              >
+              <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
                 <button
                   type="button"
-                  className={`lang-btn ${lang === 'bn' ? 'bg-brand-700 text-white shadow-sm hover:text-white' : ''}`}
+                  className={`rounded px-2.5 py-0.5 text-[11px] font-bold transition ${
+                    lang === 'bn' ? 'bg-[#431B25] text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
                   onClick={() => setLang('bn')}
-                  aria-pressed={lang === 'bn'}
                 >
                   বাংলা
                 </button>
                 <button
                   type="button"
-                  className={`lang-btn ${lang === 'en' ? 'bg-brand-700 text-white shadow-sm hover:text-white' : ''}`}
+                  className={`rounded px-2.5 py-0.5 text-[11px] font-bold transition ${
+                    lang === 'en' ? 'bg-[#431B25] text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
                   onClick={() => setLang('en')}
-                  aria-pressed={lang === 'en'}
                 >
                   EN
                 </button>
               </div>
             </div>
           </div>
-
-          <p className="mt-7 text-center text-[11px] text-brand-400">
-            {tr('login.footer', { year: 2026 })}
-          </p>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
@@ -313,10 +291,10 @@ export default function HomePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-brand-50">
-          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-700 shadow-lg ring-4 ring-brand-100 animate-pulse overflow-hidden">
-            <img src="/logo.png" alt="" className="h-full w-full object-cover" aria-hidden="true" />
-          </span>
+        <div className="flex min-h-screen items-center justify-center bg-[#FAF8F5]">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#431B25] p-3 shadow-lg ring-4 ring-rose-100 animate-pulse">
+            <img src="/logo.png" alt="Loading" className="h-full w-full object-contain" />
+          </div>
         </div>
       }
     >
