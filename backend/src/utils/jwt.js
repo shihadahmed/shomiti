@@ -28,6 +28,8 @@ export const cookieOptions = () => ({
   secure: config.isProduction,
   // The live frontend and API run on different domains, so the session cookie
   // must be allowed on cross-site requests. SameSite=None requires Secure.
+  // In development (HTTP), we use 'lax' which works for same-site but not cross-origin.
+  // For cross-origin dev, we rely on Authorization header (Bearer token) instead.
   sameSite: config.isProduction ? 'none' : 'lax',
   path: '/',
 });
