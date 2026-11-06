@@ -294,7 +294,7 @@ export default function AppShell({ children }) {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold text-[#2D151B]">{displayName}</p>
                         <span className="inline-block rounded-md bg-[#F7EEDD] px-1.5 py-0.5 text-[10px] font-semibold text-[#6B1D2F]">
-                          {tr(`role.${user.role}`)}
+                          {user?.role ? tr(`role.${user.role}`) : tr('role.0')}
                         </span>
                         <p className="truncate text-[11px] text-stone-500 mt-0.5">{user.email || user.phone}</p>
                       </div>

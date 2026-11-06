@@ -528,7 +528,7 @@ function EnrollModal({ open, onClose, schemeOptions, form, errors, onChange, sub
               value={form.schemeId}
               onChange={(e) => onChange({ ...form, schemeId: e.target.value })}
               required
-              options={schemeOptions.map(s => ({ value: s._id, label: `${s.name} (${tr(`savings.${s.savingsType}`)})` }))}
+              options={schemeOptions.map(s => ({ value: s._id, label: `${s.name} (${s.savingsType ? tr(`savings.${s.savingsType}`) : ''})` }))}
               placeholder={tr('schemes.chooseScheme')}
             />
             <Input
