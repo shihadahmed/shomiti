@@ -283,14 +283,14 @@ export default function DocumentsPage() {
                           </span>
                         )}
                       </td>
-                      <td className="td capitalize">{tr(`category.${doc.category}`)}</td>
+                      <td className="td capitalize">{doc.category ? tr(`category.${doc.category}`) : '-'}</td>
                       <td className="td text-brand-700 font-mono">
                         {Math.round((doc.file?.size || 0) / 1024)} KB
                       </td>
                       <td className="td text-brand-700">{doc.uploadedBy?.name || '-'}</td>
                       <td className="td">
                         <span className={`badge ${doc.visibility === 'member' ? 'badge-green' : 'badge-slate'}`}>
-                          {tr(`documents.${doc.visibility}`)}
+                          {doc.visibility ? tr(`documents.${doc.visibility}`) : '-'}
                         </span>
                       </td>
                       <td className="td text-brand-700">{formatDate(doc.createdAt)}</td>
