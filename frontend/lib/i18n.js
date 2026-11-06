@@ -86,6 +86,26 @@ const en = {
   'login.identifierRequired': 'Please enter your username or email.',
   'login.passwordRequired': 'Please enter your password.',
 
+  // Additional login page keys
+  'login.welcomeBack': 'Welcome back',
+  'login.signInToManage': 'Sign in to manage your cooperative account',
+  'login.identifierLabel': 'Email or Phone',
+  'login.identifierPlaceholder': '017XXXXXXXX or name@example.com',
+  'login.passwordLabelShort': 'Password',
+  'login.passwordPlaceholderShort': 'Enter your password',
+  'login.forgotPasswordBtn': 'Forgot password?',
+  'login.signInBtn': 'Sign in',
+  'login.signingInBtn': 'Signing in...',
+  'login.secureSession': 'Secure session · Session protected',
+  'login.secureSessionShort': 'Secure session · Session protected',
+  'login.capsLockWarning': 'Caps Lock is ON',
+  'login.forgotPasswordLink': 'Forgot password?',
+  'login.signIn': 'Sign in',
+  'login.signingIn': 'Signing in...',
+  'login.signingInBtn': 'Signing in...',
+  'login.signInBtn': 'Sign in',
+  'login.secureSessionShort': 'Secure session · Session protected',
+
   // Missing nav keys
   'nav.analytics': 'Analytics',
   'nav.settings': 'Settings',
@@ -1129,6 +1149,7 @@ const en = {
 };
 
 const bn = {
+
   'app.name': 'স্বপ্ননীড় সমবায় সমিতি',
   'app.nameBn': 'স্বপ্ননীড় সমবায় সমিতি',
   'app.short': 'স্বপ্ননীড়',
@@ -1213,6 +1234,26 @@ const bn = {
   'login.sessionExpired': 'আপনার সেশনের মেয়াদ শেষ হয়েছে। আবার সাইন ইন করুন।',
   'login.identifierRequired': 'ব্যবহারকারীর নাম বা ইমেইল লিখুন।',
   'login.passwordRequired': 'পাসওয়ার্ড লিখুন।',
+
+  // Additional login page keys
+  'login.welcomeBack': 'পুনরায় স্বাগতম',
+  'login.signInToManage': 'আপনার সমবায় একাউন্ট পরিচালনা করতে সাইন ইন করুন',
+  'login.identifierLabel': 'ইমেইল অথবা ফোন',
+  'login.identifierPlaceholder': '০১৭XXXXXXXX বা name@example.com',
+  'login.passwordLabelShort': 'পাসওয়ার্ড',
+  'login.passwordPlaceholderShort': 'আপনার পাসওয়ার্ড দিন',
+  'login.forgotPasswordBtn': 'পাসওয়ার্ড ভুলে গেছেন?',
+  'login.signInBtn': 'সাইন ইন',
+  'login.signingInBtn': 'সাইন ইন হচ্ছে...',
+  'login.secureSession': 'নিরাপদ সেশন · সেশন সুরক্ষিত',
+  'login.secureSessionShort': 'নিরাপদ সেশন · সেশন সুরক্ষিত',
+  'login.capsLockWarning': 'ক্যাপস লক অন',
+  'login.forgotPasswordLink': 'পাসওয়ার্ড ভুলে গেছেন?',
+  'login.signIn': 'সাইন ইন',
+  'login.signingIn': 'সাইন ইন হচ্ছে...',
+  'login.signingInBtn': 'সাইন ইন হচ্ছে...',
+  'login.signInBtn': 'সাইন ইন',
+  'login.secureSessionShort': 'নিরাপদ সেশন · সেশন সুরক্ষিত',
 
   'dashboard.title': 'ড্যাশবোর্ড',
   'dashboard.subtitle': 'সমিতির চলমান সারসংক্ষেপ',
@@ -2188,9 +2229,39 @@ const bn = {
   'role.2': 'সা. সচিব',
   'role.3': 'সভাপতি',
   'role.4': 'সুপার অ্যাডমিন',
-
+// Login page - new keys
+  'login.welcomeBack': 'পুনরায় স্বাগতম',
+  'login.signInToManage': 'আপনার সমবায় অ্যাকাউন্ট পরিচালনা করতে সাইন ইন করুন',
+  'login.emailOrPhone': 'ইমেইল অথবা ফোন',
+  'login.emailOrPhonePlaceholder': '০১৭XXXXXXXX বা name@example.com',
+  'login.passwordLabel': 'পাসওয়ার্ড',
+  'login.passwordPlaceholder': 'পাসওয়ার্ড লিখুন',
+  'login.forgotPasswordLink': 'পাসওয়ার্ড ভুলে গেছেন?',
+  'login.capsLockOn': 'ক্যাপস লক অন',
+  'login.signIn': 'সাইন ইন',
+  'login.signingIn': 'সাইন ইন হচ্ছে...',
+  'login.signInButton': 'সাইন ইন',
+  'login.helpText': 'আপনার সমিতির সুপার অ্যাডমিনের সাথে যোগাযোগ করে অস্থায়ী পাসওয়ার্ড বা অ্যাকাউন্ট ক্রেডেনশিয়াল রিসেট করুন।',
+  'login.secureSession': 'নিরাপদ সেশন · সেশন সুরক্ষিত',
+  'login.sslSecured': '২৫৬-বিট SSL সুরক্ষিত',
+  'login.copyright': '© ২০২৬ স্বপ্ননীড়',
+  'login.mobileTitle': 'পুনরায় স্বাগতম',
+  'login.mobileSubtitle': 'আপনার সমবায় অ্যাকাউন্ট পরিচালনা করতে সাইন ইন করুন',
+  'login.identifierLabel': 'ইমেইল অথবা ফোন',
+  'login.identifierPlaceholder': '০১৭XXXXXXXX বা name@example.com',
+  'login.passwordLabelShort': 'পাসওয়ার্ড',
+  'login.passwordPlaceholderShort': 'পাসওয়ার্ড লিখুন',
+  'login.forgotPasswordBtn': 'পাসওয়ার্ড ভুলে গেছেন?',
+  'login.capsLockWarning': 'ক্যাপস লক অন',
+  'login.helpOpenText': 'আপনার সমিতির সুপার অ্যাডমিনের সাথে যোগাযোগ করে অস্থায়ী পাসওয়ার্ড বা অ্যাকাউন্ট ক্রেডেনশিয়াল রিসেট করুন।',
+  'login.signInBtn': 'সাইন ইন',
+  'login.signingInBtn': 'সাইন ইন হচ্ছে...',
+  'login.secureSessionShort': 'নিরাপদ সেশন · সেশন সুরক্ষিত',
+  'login.copyrightShort': '© ২০২৬ স্বপ্ননীড়',
+  'login.language': 'ভাষা',
+  'login.secure': 'নিরাপদ সেশন · সেশন সুরক্ষিত',
+  'login.secureNotice': 'আপনার সেশন নিরাপদ এনক্রিপশন দিয়ে সুরক্ষিত',
 };
-
 const dictionaries = { en, bn };
 const STORAGE_KEY = 'shomiti.lang';
 const LOCALES = ['bn', 'en'];
