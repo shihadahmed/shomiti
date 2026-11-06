@@ -32,7 +32,7 @@ export default function MemberEditPage() {
     const fetchMember = async () => {
       try {
         const res = await apiGet(`/members/${memberId}`);
-        setInitialData(res);
+        setInitialData(res?.member ?? res);
       } catch (err) {
         console.error(err);
       } finally {

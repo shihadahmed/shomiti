@@ -11,9 +11,9 @@ export default function AddMemberPage() {
   const router = useRouter();
   const { tr } = useLang();
 
-  const handleSuccess = () => {
-    // There is no `/members/[id]` detail route, so land back on the registry list.
-    router.push('/members');
+  const handleSuccess = (member) => {
+    // Every member owns a portal account, so open the profile where access is managed.
+    router.push(member?._id ? `/members/${member._id}` : '/members');
   };
 
   const handleCancel = () => {
