@@ -407,7 +407,7 @@ export default function MemberProfilePage() {
                   {nom.address && (
                     <p className="flex justify-between">
                       <span className="text-brand-500">Address:</span>
-                      <span className="text-right text-brand-800 line-clamp-1">{nom.address}</span>
+                      <span className="text-right text-brand-800 line-clamp-1">{renderAddress(nom.address)}</span>
                     </p>
                   )}
                 </div>
