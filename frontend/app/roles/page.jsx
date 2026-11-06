@@ -263,23 +263,14 @@ export default function RolesPage() {
           subtitle={tr('roles.subtitle')}
           actions={
             <div className="flex items-center gap-3">
-              <div className="flex bg-brand-100 rounded-xl p-1" role="tablist">
-                <button
-                  type="button"
-                  onClick={() => router.push('/users')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-brand-600 hover:text-brand-900 transition-all"
-                >
-                  <Icon name="users" className="h-4 w-4" />
-                  <span>{tr('users.title')}</span>
-                </button>
-                <button
-                  type="button"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white text-brand-900 shadow-sm"
-                >
-                  <Icon name="shield" className="h-4 w-4" />
-                  <span>{tr('roles.title')}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => router.push('/members')}
+                className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-800 transition hover:bg-brand-50"
+              >
+                <Icon name="users" className="h-4 w-4" />
+                <span>{tr('members.access.manageMembers')}</span>
+              </button>
               <Button variant="primary" onClick={openAddRole}>
                 <Icon name="plus" className="h-4 w-4" />
                 {tr('roles.create')}
