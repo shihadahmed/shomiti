@@ -51,6 +51,11 @@ import {
   LoaderCircle,
   Contact,
   Briefcase,
+  Mail,
+  KeyRound,
+  Copy,
+  UserCog,
+  ExternalLink,
 } from 'lucide-react';
 
 const ICONS = {
@@ -65,7 +70,9 @@ const ICONS = {
   eye: Eye, banknote: Banknote, trendingUp: TrendingUp, clock: Clock,
   filter: Funnel, xCircle: CircleX, camera: Camera, check: Check,
   lock: Lock, user: User, creditCard: CreditCard, award: Star,
-   bell: Bell, settings: Settings, info: Info, id: Contact, briefcase: Briefcase,
+  bell: Bell, settings: Settings, info: Info, id: Contact, briefcase: Briefcase,
+  mail: Mail, key: KeyRound, copy: Copy, pencilLine: PencilLine,
+  userCog: UserCog, externalLink: ExternalLink,
 };
 
 const BOLD_ICONS = new Set([
@@ -84,6 +91,7 @@ export function Icon({ name, className = 'h-5 w-5', strokeWidth }) {
 }
 
 export function StatusBadge({ status }) {
+  const safeStatus = status || 'pending';
   const styles = {
     active: 'badge-green', posted: 'badge-green', approved: 'badge-green', completed: 'badge-green', confirmed: 'badge-green', ok: 'badge-green',
     pending: 'badge-amber', pending_approval: 'badge-amber', suspended: 'badge-amber', defaulted: 'badge-red',
@@ -92,7 +100,7 @@ export function StatusBadge({ status }) {
     due: 'badge-amber', overdue: 'badge-red', paid: 'badge-green',
     draft: 'badge-slate', pending_treasurer: 'badge-blue', pending_gs: 'badge-amber', pending_president: 'badge-amber',
   };
-  return <span className={`badge ${styles[status] || 'badge-slate'}`}>{t(`status.${status}`)}</span>;
+  return <span className={`badge ${styles[safeStatus] || 'badge-slate'}`}>{t(`status.${safeStatus}`)}</span>;
 }
 
 export const Button = forwardRef(
