@@ -27,7 +27,10 @@ const userSchema = new mongoose.Schema(
     },
     rejectionReason: { type: String, default: null, trim: true, maxlength: 1000 },
     profileData: { type: mongoose.Schema.Types.Mixed, default: null },
+    pendingProfileData: { type: mongoose.Schema.Types.Mixed, default: null },
+    hasPendingKycUpdate: { type: Boolean, default: false },
     kycSubmittedAt: { type: Date, default: null },
+    kycUpdateSubmittedAt: { type: Date, default: null },
     mustChangePassword: { type: Boolean, default: false },
     tokenVersion: { type: Number, default: 0, select: false },
     resetPasswordToken: { type: String, select: false, index: true, sparse: true },
@@ -50,6 +53,8 @@ const userSchema = new mongoose.Schema(
     },
   },
 );
+
+userSchema.index({ status: 1, hasPendingKycUpdate: 1 });
 
 userSchema.methods.comparePassword = function comparePassword(plain) {
   return bcrypt.compare(plain, this.passwordHash);
