@@ -8,7 +8,7 @@ import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { apiClient } from '@/lib/api';
 import { initials } from '@/lib/i18n';
-import { Icon, Button, Modal, Input } from '@/components/ui/common';
+import { Icon, Button, Modal, Input, Avatar } from '@/components/ui/common';
 import Sidebar from './SidebarV2';
 import GlobalSearch from './GlobalSearch';
 
@@ -278,19 +278,15 @@ export default function AppShell({ children }) {
                   aria-expanded={userMenuOpen}
                   aria-label={displayName || 'Profile'}
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#6B1D2F] to-[#531322] text-xs font-bold text-white shadow-sm ring-2 ring-[#D4AF37]/50">
-                    {initials(displayName || '')}
-                  </div>
+                  <Avatar name={displayName} src={user?.photo} size="md" className="ring-2 ring-[#D4AF37]/50" />
                 </button>
 
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full z-40 mt-2.5 w-64 origin-top-right overflow-hidden rounded-2xl border border-[#E8D3A7] bg-white p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-100" role="menu">
-                    
+                     
                     {/* User Identity Card */}
                     <div className="flex items-center gap-3 rounded-xl bg-[#FDFBF7] p-3 border border-[#E8D3A7]/50 mb-2">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#6B1D2F] text-xs font-bold text-white shadow-sm ring-2 ring-[#D4AF37]/40">
-                        {initials(displayName || '')}
-                      </div>
+                      <Avatar name={displayName} src={user?.photo} size="md" className="ring-2 ring-[#D4AF37]/40" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold text-[#2D151B]">{displayName}</p>
                         <span className="inline-block rounded-md bg-[#F7EEDD] px-1.5 py-0.5 text-[10px] font-semibold text-[#6B1D2F]">

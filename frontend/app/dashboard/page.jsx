@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { useApi } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
+import MemberDashboard from '@/components/dashboard/MemberDashboard';
 import { Icon, Button, StatCard, PageHeader, EmptyState, formatMoney, formatDate } from '@/components/ui/common';
 
 export default function DashboardPage() {
@@ -49,6 +50,13 @@ export default function DashboardPage() {
   }
 
   if (!isAuthenticated || !user) return null;
+
+  // Render MemberDashboard for member role, AdminDashboard for staff/admin roles
+  const isMember = user.role === 'member';
+
+  if (isMember) {
+    return <MemberDashboard />;
+  }
 
   const displayName = lang === 'bn' && user.nameBn ? user.nameBn : user.name;
   const roleLabel = tr(`role.${user.role}`);
@@ -113,14 +121,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/12 bg-white/8 p-3 pr-5 backdrop-blur">
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-300 text-base font-bold text-brand-950">
-              {displayName
-                .trim()
-                .split(/\s+/)
-                .slice(0, 2)
-                .map((part) => part[0]?.toUpperCase() || '')
-                .join('') || '?'}
-            </span>
+            <Avatar name={displayName} src={user?.photo} size="lg" />
             <div className="min-w-0 text-right">
               <p className="truncate text-sm font-semibold">{displayName}</p>
               <p className="text-[11px] text-brand-100/65">
