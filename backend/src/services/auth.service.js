@@ -1,10 +1,25 @@
 import User from '../models/User.js';
+import Member from '../models/Member.js';
 import ApiError from '../utils/ApiError.js';
 import { hashPassword, generateTemporaryPassword, createSetupToken, hashToken } from '../utils/password.js';
 import { signAccessToken } from '../utils/jwt.js';
 import { writeAudit } from '../utils/audit.js';
 import { ROLES, USER_STATUS } from '../config/constants.js';
 import * as emailService from './email.service.js';
+
+/** Attach profile photo to user object from profileData or Member record */
+async function attachProfilePhoto(user) {
+  const userObj = user.toJSON ? user.toJSON() : user;
+  if (user.profileData?.photo) {
+    userObj.photo = user.profileData.photo;
+  } else if (user.memberId) {
+    const member = await Member.findById(user.memberId).select('photo').lean();
+    if (member?.photo) {
+      userObj.photo = member.photo;
+    }
+  }
+  return userObj;
+}
 
 export async function login(identifier, password, req) {
   const value = String(identifier || '').trim();
@@ -31,7 +46,8 @@ export async function login(identifier, password, req) {
   });
 
   const token = signAccessToken(user);
-  return { user: user.toJSON(), token };
+  const userWithPhoto = await attachProfilePhoto(user);
+  return { user: userWithPhoto, token };
 }
 
 export async function changePassword(user, { currentPassword, newPassword }, req) {

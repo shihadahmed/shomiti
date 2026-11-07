@@ -20,7 +20,11 @@ export const logout = asyncHandler(async (req, res) => {
 });
 
 export const me = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: { user: req.user } });
+  // req.user already has photo attached by authenticate middleware
+  const user = req.user.toJSON ? req.user.toJSON() : req.user;
+  // Ensure photo is included (middleware attaches it as a property on the document)
+  if (req.user.photo) user.photo = req.user.photo;
+  res.json({ success: true, data: { user } });
 });
 
 export const setupPassword = asyncHandler(async (req, res) => {

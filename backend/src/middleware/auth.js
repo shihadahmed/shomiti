@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Member from '../models/Member.js';
 import Role from '../models/Role.js';
 import ApiError from '../utils/ApiError.js';
 import { verifyAccessToken } from '../utils/jwt.js';
@@ -36,6 +37,17 @@ export async function authenticate(req, _res, next) {
       : null;
     req.user = user;
     req.user.permissions = role ? role.permissions : [];
+
+    // Attach profile photo for avatar (from profileData or Member record)
+    if (user.profileData?.photo) {
+      req.user.photo = user.profileData.photo;
+    } else if (user.memberId) {
+      const member = await Member.findById(user.memberId).select('photo').lean();
+      if (member?.photo) {
+        req.user.photo = member.photo;
+      }
+    }
+
     req.authSource = extracted.source;
     next();
   } catch (error) {
@@ -52,6 +64,15 @@ export async function optionalAuthenticate(req, _res, next) {
     const user = await User.findById(payload.sub);
     if (user?.isActive) {
       req.user = user;
+      // Attach profile photo for avatar
+      if (user.profileData?.photo) {
+        req.user.photo = user.profileData.photo;
+      } else if (user.memberId) {
+        const member = await Member.findById(user.memberId).select('photo').lean();
+        if (member?.photo) {
+          req.user.photo = member.photo;
+        }
+      }
       req.authSource = extracted.source;
     }
     return next();
