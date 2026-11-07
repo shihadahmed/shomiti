@@ -45,10 +45,23 @@ export const getMonthlyTrend = asyncHandler(async (req, res) => {
   res.json({ success: true, data: metrics.monthlyCollection });
 });
 
+/**
+ * Get member dashboard - aggregated personal data for authenticated member
+ */
+export const getMemberDashboard = asyncHandler(async (req, res) => {
+  const memberId = req.user.memberId;
+  if (!memberId) {
+    throw ApiError.forbidden('No member record linked to this account.', 'MEMBER_NOT_LINKED');
+  }
+  const data = await dashboardService.getMemberDashboard(memberId);
+  res.json({ success: true, data });
+});
+
 export default {
   getDashboard,
   getRecentTransactions,
   getPendingApprovals,
   getOverdueMembers,
   getMonthlyTrend,
+  getMemberDashboard,
 };

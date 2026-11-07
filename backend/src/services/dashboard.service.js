@@ -5,7 +5,7 @@ import SavingsDue from '../models/SavingsDue.js';
 import Expense from '../models/Expense.js';
 import Payment from '../models/Payment.js';
 import ApprovalRequest from '../models/ApprovalRequest.js';
-import { EXPENSE_STATUS, MEMBER_STATUS, PAYMENT_STATUS, TRANSACTION_STATUS, TRANSACTION_TYPES } from '../config/constants.js';
+import { EXPENSE_STATUS, MEMBER_STATUS, PAYMENT_STATUS, TRANSACTION_STATUS, TRANSACTION_TYPES, SAVINGS_DUE_STATUS } from '../config/constants.js';
 import { refreshOverdueDues } from './savings.service.js';
 
 const PENDING_EXPENSE_STATUSES = [
@@ -217,9 +217,98 @@ export async function getOverdueMembers(limit = 8) {
     .lean();
 }
 
+/**
+ * Aggregated member dashboard data for authenticated members.
+ * Returns personal savings, dues, transactions, and profile info.
+ */
+export async function getMemberDashboard(memberId) {
+  await refreshOverdueDues();
+
+  const [accounts, duesResult, transactionsResult] = await Promise.all([
+    SavingsAccount.find({ member: memberId }).sort({ createdAt: 1 }).lean(),
+    SavingsDue.find({
+      member: memberId,
+      status: { $in: [SAVINGS_DUE_STATUS.DUE, SAVINGS_DUE_STATUS.OVERDUE] },
+    })
+      .sort({ dueDate: 1 })
+      .populate('member', 'code fullName phone')
+      .populate('payment', 'paymentNo status receiptNo')
+      .lean(),
+    SavingsTransaction.find({
+      member: memberId,
+      status: TRANSACTION_STATUS.POSTED,
+    })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('account', 'accountNo type')
+      .populate('savingsDue', 'dueNo period')
+      .populate('postedBy', 'name')
+      .lean(),
+  ]);
+
+  // Calculate savings summary
+  const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balancePaisa || 0), 0);
+  const activeAccounts = accounts.filter((acc) => acc.status === 'active').length;
+
+  // Calculate monthly deposits (current month)
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+  const monthlyDeposits = transactionsResult
+    .filter((txn) => txn.type === TRANSACTION_TYPES.DEPOSIT && new Date(txn.createdAt) >= startOfMonth)
+    .reduce((sum, txn) => sum + (txn.amountPaisa || 0), 0);
+
+  // Dues summary
+  const overdueDues = duesResult.filter((d) => d.status === SAVINGS_DUE_STATUS.OVERDUE);
+  const dueDues = duesResult.filter((d) => d.status === SAVINGS_DUE_STATUS.DUE);
+  const totalOverdueAmount = overdueDues.reduce((sum, d) => sum + (d.totalDuePaisa || 0), 0);
+  const totalDueAmount = dueDues.reduce((sum, d) => sum + (d.totalDuePaisa || 0), 0);
+
+  return {
+    accounts: accounts.map((acc) => ({
+      _id: acc._id,
+      accountNo: acc.accountNo,
+      type: acc.type,
+      balancePaisa: acc.balancePaisa || 0,
+      status: acc.status,
+      createdAt: acc.createdAt,
+    })),
+    dues: {
+      items: duesResult,
+      summary: {
+        totalOverdueCount: overdueDues.length,
+        totalOverdueAmount,
+        totalDueCount: dueDues.length,
+        totalDueAmount,
+        totalItems: duesResult.length,
+        totalAmount: totalOverdueAmount + totalDueAmount,
+      },
+    },
+    transactions: {
+      items: transactionsResult.map((txn) => ({
+        _id: txn._id,
+        txnNo: txn.txnNo,
+        date: txn.createdAt,
+        type: txn.type,
+        amountPaisa: txn.amountPaisa || 0,
+        status: txn.status,
+        account: txn.account,
+        savingsDue: txn.savingsDue,
+        postedBy: txn.postedBy,
+      })),
+      summary: {
+        monthlyDeposits,
+        totalBalance,
+        activeAccounts,
+      },
+    },
+  };
+}
+
 export default {
   getDashboardMetrics,
   getRecentTransactions,
   getPendingApprovals,
   getOverdueMembers,
+  getMemberDashboard,
 };
