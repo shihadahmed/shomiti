@@ -51,6 +51,12 @@ export const KYC_BLOCKED_STATUSES = Object.freeze([
   USER_STATUS.REJECTED,
 ]);
 
+/** Statuses from which a member may submit or resubmit their KYC profile. */
+export const KYC_SUBMITTABLE_STATUSES = Object.freeze([
+  USER_STATUS.PENDING_KYC,
+  USER_STATUS.REJECTED,
+]);
+
 /** In-app notification types (bell icon). */
 export const NOTIFICATION_TYPE = Object.freeze({
   PROFILE_SUBMITTED: 'profile_submitted',
