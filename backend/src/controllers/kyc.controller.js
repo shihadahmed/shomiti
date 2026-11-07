@@ -7,11 +7,14 @@ export const getMyKyc = asyncHandler(async (req, res) => {
 });
 
 export const submitKyc = asyncHandler(async (req, res) => {
-  const profile = await kycService.submitKyc(req.user._id, req.body, req);
+  const { user, requestType } = await kycService.submitKyc(req.user._id, req.body, req);
   res.json({
     success: true,
-    data: { profile },
-    message: 'Your profile has been submitted for review.',
+    data: { profile: user, requestType },
+    message:
+      requestType === 'update'
+        ? 'Profile update request submitted for review'
+        : 'Your profile has been submitted for review.',
   });
 });
 
@@ -21,14 +24,29 @@ export const listPendingKyc = asyncHandler(async (req, res) => {
 });
 
 export const decideKyc = asyncHandler(async (req, res) => {
-  const user = await kycService.decideKyc(req.params.id, req.body, req.user, req);
+  const { user, requestType } = await kycService.decideKyc(
+    req.params.id,
+    req.body,
+    req.user,
+    req,
+  );
+  const approved = req.body.decision === 'approved';
+
+  let message;
+  if (requestType === 'update') {
+    message = approved
+      ? 'Profile updates approved. The member record has been updated.'
+      : 'Profile update request rejected. The live member record was left unchanged.';
+  } else {
+    message = approved
+      ? 'Profile approved. The account is now active.'
+      : 'Profile rejected. The member has been notified.';
+  }
+
   res.json({
     success: true,
-    data: { user },
-    message:
-      req.body.decision === 'approved'
-        ? 'Profile approved. The account is now active.'
-        : 'Profile rejected. The member has been notified.',
+    data: { user, requestType },
+    message,
   });
 });
 
