@@ -15,6 +15,7 @@ import { useApi, apiPatch, apiPost } from '@/lib/useApi';
 
 const NOTIFICATION_ICONS = {
   profile_submitted: 'user',
+  kyc_review_requested: 'clipboard-check',
   account_approved: 'check-circle',
   account_rejected: 'alert-circle',
   system: 'bell',

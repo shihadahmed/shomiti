@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getLang, dictionaries, setLang } from './i18n';
+import { formatDate, formatDateTime } from './i18n';
 
 /**
  * Language hook that keeps SSR and client hydration consistent.
@@ -33,7 +34,7 @@ export function useLang() {
     setLangState(next);
   };
 
-  return { lang, tr, setLang: changeLang };
+  return { lang, tr, setLang: changeLang, formatDate, formatDateTime };
 }
 
 export default useLang;

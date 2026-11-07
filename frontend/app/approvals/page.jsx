@@ -597,7 +597,7 @@ export default function ApprovalsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-brand-200">
-                      {kycData.items.map((user) => (
+                      {kycData?.items?.map((user) => (
                         <tr key={user._id} className="tr-hover">
                           <td className="td font-medium text-brand-900">
                             {lang === 'bn' && user.profileData?.fullNameBn
