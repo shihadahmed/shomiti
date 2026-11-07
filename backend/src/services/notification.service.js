@@ -1,9 +1,11 @@
 import mongoose from 'mongoose';
 import Notification from '../models/Notification.js';
+import Role from '../models/Role.js';
+import User from '../models/User.js';
 import ApiError from '../utils/ApiError.js';
 import { getPagination, paginationMeta } from '../utils/pagination.js';
 import { writeAudit } from '../utils/audit.js';
-import { NOTIFICATION_TYPE } from '../config/constants.js';
+import { NOTIFICATION_TYPE, STAFF_ROLES } from '../config/constants.js';
 
 /** Create an in-app notification (bell icon) for a user. */
 export async function createNotification(
@@ -38,6 +40,55 @@ export async function createNotification(
   }
 
   return notification[0];
+}
+
+/**
+ * Resolves the active users who hold a permission, used to fan out review
+ * alerts. Falls back to the built-in staff roles when the Role collection has
+ * not been seeded yet.
+ */
+export async function findUsersWithPermission(permission, { excludeUserId } = {}) {
+  const roles = await Role.find({ permissions: permission }).select('name').lean();
+  const roleNames = roles.length ? roles.map((role) => role.name) : STAFF_ROLES;
+
+  const filter = { role: { $in: roleNames }, isActive: true };
+  if (excludeUserId) filter._id = { $ne: excludeUserId };
+
+  return User.find(filter).select('name email phone role').lean();
+}
+
+/** Creates the same in-app notification for every active permission holder. */
+export async function notifyPermissionHolders({
+  permission,
+  excludeUserId,
+  type,
+  title,
+  message,
+  link,
+  metadata,
+  actor,
+  req,
+}) {
+  const recipients = await findUsersWithPermission(permission, { excludeUserId });
+
+  const results = await Promise.allSettled(
+    recipients.map((recipient) =>
+      createNotification({
+        userId: recipient._id,
+        type,
+        title,
+        message,
+        link,
+        metadata,
+        actor,
+        req,
+      }),
+    ),
+  );
+
+  return results
+    .filter((result) => result.status === 'fulfilled')
+    .map((result) => result.value);
 }
 
 /** List notifications for a user with pagination. */
@@ -121,4 +172,6 @@ export default {
   countUnreadNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  findUsersWithPermission,
+  notifyPermissionHolders,
 };

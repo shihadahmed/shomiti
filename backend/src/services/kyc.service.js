@@ -9,6 +9,8 @@ import {
   KYC_SUBMITTABLE_STATUSES,
 } from '../config/constants.js';
 import * as emailService from './email.service.js';
+import * as notificationService from './notification.service.js';
+import { NOTIFICATION_TYPE } from '../config/constants.js';
 import { getPagination, paginationMeta } from '../utils/pagination.js';
 
 const MEMBER_KYC_FIELDS = [
@@ -469,6 +471,25 @@ export async function submitKyc(userId, payload, req) {
       });
     } catch (emailError) {
       console.error('[KYC Service] profile-submitted email failed:', emailError.message);
+    }
+  }
+
+  // Send in-app notification to all users with KYC approval permission.
+  if (result?.requestType === 'initial') {
+    try {
+      await notificationService.notifyPermissionHolders({
+        permission: 'users.manage_kyc',
+        excludeUserId: result.user._id,
+        type: NOTIFICATION_TYPE.KYC_REVIEW_REQUESTED,
+        title: 'New KYC Submission for Review',
+        message: `${result.user.name} has submitted their profile for KYC review.`,
+        link: '/approvals?tab=kyc',
+        metadata: { userId: result.user._id.toString(), memberCode: result.user.memberId?.toString() },
+        actor: result.user,
+        req,
+      });
+    } catch (notificationError) {
+      console.error('[KYC Service] KYC review requested notification failed:', notificationError.message);
     }
   }
 
