@@ -100,6 +100,7 @@ export function StatusBadge({ status }) {
     cancelled: 'badge-slate', inactive: 'badge-slate', closed: 'badge-slate', refunded: 'badge-blue',
     due: 'badge-amber', overdue: 'badge-red', paid: 'badge-green',
     draft: 'badge-slate', pending_treasurer: 'badge-blue', pending_gs: 'badge-amber', pending_president: 'badge-amber',
+    invited: 'badge-blue', pending_kyc: 'badge-amber', under_review: 'badge-blue',
   };
   return <span className={`badge ${styles[safeStatus] || 'badge-slate'}`}>{t(`status.${safeStatus}`)}</span>;
 }

@@ -114,6 +114,7 @@ export default function MemberProfilePage() {
   const renderAddress = (addressData) => {
     if (!addressData) return '—';
     if (typeof addressData === 'string') return addressData;
+    if (addressData.fullAddress) return addressData.fullAddress;
     const parts = [
       addressData.village,
       addressData.postOffice,
