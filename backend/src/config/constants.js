@@ -60,6 +60,7 @@ export const KYC_SUBMITTABLE_STATUSES = Object.freeze([
 /** In-app notification types (bell icon). */
 export const NOTIFICATION_TYPE = Object.freeze({
   PROFILE_SUBMITTED: 'profile_submitted',
+  KYC_REVIEW_REQUESTED: 'kyc_review_requested',
   ACCOUNT_APPROVED: 'account_approved',
   ACCOUNT_REJECTED: 'account_rejected',
   SYSTEM: 'system',
@@ -366,7 +367,7 @@ export const DEFAULT_SYSTEM_ROLES = Object.freeze([
   {
     name: 'president',
     description: 'Final approval authority for expenses and strategic decisions. Oversees meetings and resolutions.',
-    isSystemLocked: true,
+    isSystemLocked: false,
     permissions: [
       'members.view',
       'savings.view',
@@ -388,7 +389,7 @@ export const DEFAULT_SYSTEM_ROLES = Object.freeze([
   {
     name: 'general_secretary',
     description: 'Approves expenses, manages documents, and oversees meetings. Second-tier expense approval.',
-    isSystemLocked: true,
+    isSystemLocked: false,
     permissions: [
       'members.view',
       'members.edit',
@@ -411,7 +412,7 @@ export const DEFAULT_SYSTEM_ROLES = Object.freeze([
   {
     name: 'treasurer',
     description: 'Manages savings, dues, payments, expenses, and financial reporting. First-tier expense approval and payment verification.',
-    isSystemLocked: true,
+    isSystemLocked: false,
     permissions: [
       'members.view',
       'members.create',
@@ -436,7 +437,7 @@ export const DEFAULT_SYSTEM_ROLES = Object.freeze([
   {
     name: 'member',
     description: 'Standard member portal access - own profile, dues, payments, statements, and public fund info.',
-    isSystemLocked: true,
+    isSystemLocked: false,
     permissions: [
       'members.view_own',
       'savings.view_own',

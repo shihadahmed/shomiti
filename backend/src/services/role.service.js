@@ -30,15 +30,20 @@ export async function initializeDefaultRoles() {
       if (!hasAnyRole) {
         await Role.create({
           ...roleData,
-          isSystemLocked: true,
+          isSystemLocked: roleData.isSystemLocked,
         });
       }
       continue;
     }
-    if (existing.isSystemLocked) {
-      // Ensure permissions are up to date for system roles
+    // For default system roles, keep permissions and description in sync
+    // (but don't change isSystemLocked for existing roles)
+    if (roleData.isSystemLocked || existing.isSystemLocked) {
       existing.permissions = roleData.permissions;
       existing.description = roleData.description;
+      // Only super_admin should remain system-locked
+      if (roleData.name === 'super_admin') {
+        existing.isSystemLocked = true;
+      }
       await existing.save();
     }
   }
