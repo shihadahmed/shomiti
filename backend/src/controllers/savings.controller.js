@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import * as savingsService from '../services/savings.service.js';
+import * as schemeService from '../services/scheme.service.js';
 
 export const listDues = asyncHandler(async (req, res) => {
   const result = await savingsService.listDues(req.query);
@@ -7,7 +8,7 @@ export const listDues = asyncHandler(async (req, res) => {
 });
 
 export const myDues = asyncHandler(async (req, res) => {
-  if (!req.user.member) {
+  if (!req.user.memberId) {
     return res.json({
       success: true,
       data: { items: [], meta: { total: 0, page: 1, limit: 20, pages: 0 } },
@@ -15,7 +16,7 @@ export const myDues = asyncHandler(async (req, res) => {
   }
   const result = await savingsService.listDues({
     ...req.query,
-    memberId: String(req.user.member),
+    memberId: String(req.user.memberId),
   });
   return res.json({ success: true, data: result });
 });
@@ -80,7 +81,7 @@ export const listTransactions = asyncHandler(async (req, res) => {
 });
 
 export const myTransactions = asyncHandler(async (req, res) => {
-  if (!req.user.member) {
+  if (!req.user.memberId) {
     return res.json({
       success: true,
       data: { items: [], meta: { total: 0, page: 1, limit: 20, pages: 0 } },
@@ -88,7 +89,7 @@ export const myTransactions = asyncHandler(async (req, res) => {
   }
   const result = await savingsService.listTransactions({
     ...req.query,
-    memberId: String(req.user.member),
+    memberId: String(req.user.memberId),
   });
   return res.json({ success: true, data: result });
 });
@@ -101,6 +102,31 @@ export const transactionDetail = asyncHandler(async (req, res) => {
 export const memberAccounts = asyncHandler(async (req, res) => {
   const items = await savingsService.listAccounts(req.params.memberId);
   res.json({ success: true, data: { items } });
+});
+
+export const mySavingsDashboard = asyncHandler(async (req, res) => {
+  if (!req.user.memberId) {
+    return res.json({
+      success: true,
+      data: {
+        accounts: [],
+        totalBalancePaisa: 0,
+        duesSummary: { dueCount: 0, overdueCount: 0, totalDueCount: 0, totalDuePaisa: 0 },
+        recentTransactions: [],
+        enrolledSchemes: [],
+      },
+    });
+  }
+  const dashboard = await savingsService.getMemberSavingsDashboard(String(req.user.memberId));
+  res.json({ success: true, data: dashboard });
+});
+
+export const mySchemes = asyncHandler(async (req, res) => {
+  if (!req.user.memberId) {
+    return res.json({ success: true, data: { items: [] } });
+  }
+  const schemes = await schemeService.getMemberSchemes(String(req.user.memberId));
+  res.json({ success: true, data: { items: schemes } });
 });
 
 export default {

@@ -7,7 +7,7 @@ export const list = asyncHandler(async (req, res) => {
 });
 
 export const myDocuments = asyncHandler(async (req, res) => {
-  if (!req.user.member) {
+  if (!req.user.memberId) {
     return res.json({
       success: true,
       data: { items: [], meta: { total: 0, page: 1, limit: 20, pages: 0 } },
@@ -15,7 +15,7 @@ export const myDocuments = asyncHandler(async (req, res) => {
   }
   const result = await documentService.listDocuments({
     ...req.query,
-    memberId: String(req.user.member),
+    memberId: String(req.user.memberId),
     visibility: 'member',
   });
   return res.json({ success: true, data: result });
