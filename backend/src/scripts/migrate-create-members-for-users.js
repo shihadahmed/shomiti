@@ -12,12 +12,12 @@ import mongoose from 'mongoose';
 import config from '../config/env.js';
 import Member from '../models/Member.js';
 import User from '../models/User.js';
-import { nextDocNo } from '../utils/sequence.js';
+import { nextMemberCode } from '../utils/sequence.js';
 import { MEMBER_STATUS } from '../config/constants.js';
 
-async function allocateMemberCode(date) {
+async function allocateMemberCode() {
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const code = await nextDocNo('SOM', 'member', { date });
+    const code = await nextMemberCode();
     const exists = await Member.exists({ code });
     if (!exists) return code;
   }
@@ -74,7 +74,7 @@ async function migrate() {
 
         const joinDate = user.createdAt || new Date();
         member = await Member.create({
-          code: await allocateMemberCode(joinDate),
+          code: await allocateMemberCode(),
           fullName: user.name,
           phone: user.phone,
           email: user.email || undefined,

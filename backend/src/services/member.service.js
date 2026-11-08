@@ -6,7 +6,7 @@ import SavingsAccount from '../models/SavingsAccount.js';
 import SavingsTransaction from '../models/SavingsTransaction.js';
 import ApiError from '../utils/ApiError.js';
 import { getPagination, paginationMeta } from '../utils/pagination.js';
-import { nextDocNo } from '../utils/sequence.js';
+import { nextDocNo, nextMemberCode } from '../utils/sequence.js';
 import { writeAudit } from '../utils/audit.js';
 import { hashPassword, createSetupToken } from '../utils/password.js';
 import * as emailService from './email.service.js';
@@ -215,7 +215,7 @@ export async function createMember(payload, actor, req) {
   try {
     outcome = await session.withTransaction(async () => {
       const joinDate = payload.joinDate ? new Date(payload.joinDate) : new Date();
-      const code = await nextDocNo('SOM', 'member', { date: joinDate });
+      const code = await nextMemberCode();
       const accountNo = await nextDocNo('SAV', 'savings-account', { date: joinDate });
 
       const nominees = Array.isArray(payload.nominees) ? payload.nominees.map((n) => ({

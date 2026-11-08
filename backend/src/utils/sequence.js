@@ -42,4 +42,48 @@ export async function nextDocNo(prefix, key, options = {}) {
   return formatDocNo(prefix, sequence, options.date, options.pad);
 }
 
-export default { nextSequence, formatDocNo, nextDocNo };
+/** Member codes map years onto letters starting at A for 2024. */
+export const MEMBER_CODE_BASE_YEAR = 2024;
+const MONTH_LETTERS = 'ABCDEFGHIJKL';
+const MEMBER_CODE_MAX_SEQUENCE = 9999;
+
+/** Year letter for a date: 2024 => A, 2025 => B, 2026 => C, ... */
+export function memberYearLetter(date = new Date()) {
+  return String.fromCharCode(65 + (new Date(date).getFullYear() - MEMBER_CODE_BASE_YEAR));
+}
+
+/** Month letter for a date: Jan => A, Nov => K, Dec => L. */
+export function memberMonthLetter(date = new Date()) {
+  return MONTH_LETTERS[new Date(date).getMonth()];
+}
+
+/** Formats a six-character member code, e.g. C0001K for November 2026. */
+export function formatMemberCode(sequence, date = new Date()) {
+  return `${memberYearLetter(date)}${String(sequence).padStart(4, '0')}${memberMonthLetter(date)}`;
+}
+
+/**
+ * Allocates the next member code for the month `date` falls in.
+ *
+ * The sequence restarts at 0001 each month and is incremented atomically by
+ * MongoDB, so concurrent signups can never receive the same code.
+ */
+export async function nextMemberCode(date = new Date()) {
+  const at = new Date(date);
+  const key = `member-code:${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}`;
+  const sequence = await nextSequence(key);
+  if (sequence > MEMBER_CODE_MAX_SEQUENCE) {
+    throw new Error(`Member code sequence overflow for "${key}".`);
+  }
+  return formatMemberCode(sequence, at);
+}
+
+export default {
+  nextSequence,
+  formatDocNo,
+  nextDocNo,
+  memberYearLetter,
+  memberMonthLetter,
+  formatMemberCode,
+  nextMemberCode,
+};

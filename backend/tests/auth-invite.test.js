@@ -187,7 +187,11 @@ describe('Member registration', () => {
     assert.equal(res.status, 201);
     const { member, account, user, emailSent } = res.body.data;
 
-    assert.match(member.code, /^SOM-\d{4}-\d{4}$/);
+    const now = new Date();
+    const yearLetter = String.fromCharCode(65 + (now.getFullYear() - 2024));
+    const monthLetter = 'ABCDEFGHIJKL'[now.getMonth()];
+    assert.match(member.code, new RegExp(`^${yearLetter}\\d{4}${monthLetter}$`));
+    assert.equal(member.code.length, 6);
     assert.match(account.accountNo, /^SAV-\d{4}-\d{4}$/);
     assert.equal(user.email, 'member@test.local');
     assert.equal(user.role, 'member');

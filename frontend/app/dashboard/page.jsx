@@ -8,7 +8,7 @@ import { useLang } from '@/lib/useLang';
 import { useApi } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import MemberDashboard from '@/components/dashboard/MemberDashboard';
-import { Icon, Button, StatCard, PageHeader, EmptyState, formatMoney, formatDate } from '@/components/ui/common';
+import { Icon, Button, StatCard, PageHeader, EmptyState, Avatar, formatMoney, formatDate } from '@/components/ui/common';
 
 export default function DashboardPage() {
   const router = useRouter();

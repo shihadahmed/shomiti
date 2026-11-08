@@ -6,7 +6,7 @@ import Member from '../models/Member.js';
 import SavingsScheme from '../models/SavingsScheme.js';
 import { ensureChartOfAccounts } from '../services/ledger.service.js';
 import { hashPassword } from '../utils/password.js';
-import { nextDocNo } from '../utils/sequence.js';
+import { nextMemberCode } from '../utils/sequence.js';
 import { ROLES, BUSINESS_RULES, SAVINGS_TYPES, MEMBER_STATUS } from '../config/constants.js';
 
 const DEFAULT_USERS = [
@@ -45,9 +45,9 @@ const DEFAULT_USERS = [
 ];
 
 /** Allocates a member code, retrying if a manually inserted row already used it. */
-async function allocateMemberCode(date) {
+async function allocateMemberCode() {
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const code = await nextDocNo('SOM', 'member', { date });
+    const code = await nextMemberCode();
     const exists = await Member.exists({ code });
     if (!exists) return code;
   }
@@ -82,7 +82,7 @@ async function ensureMemberForUser(user, userData) {
 
   const joinDate = user.createdAt || new Date();
   member = await Member.create({
-    code: await allocateMemberCode(joinDate),
+    code: await allocateMemberCode(),
     fullName: user.name,
     phone: user.phone,
     email: user.email || undefined,
