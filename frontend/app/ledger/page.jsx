@@ -140,7 +140,7 @@ export default function LedgerPage() {
           toDate={toDate}
           setToDate={setToDate}
           page={entryPage}
-          setPage={setPage}
+          setPage={setEntryPage}
           handleSearch={handleSearch}
         />
       )}
@@ -149,7 +149,7 @@ export default function LedgerPage() {
 }
 
 function TrialBalanceView({ trial, loading, error, totals, balance }) {
-  const { tr, formatMoney } = useLang();
+  const { tr } = useLang();
 
   if (loading) {
     return (
@@ -304,7 +304,7 @@ function EntriesView({
   setPage,
   handleSearch,
 }) {
-  const { tr, formatMoney, formatDate } = useLang();
+  const { tr, formatDate } = useLang();
 
   if (loading) {
     return (
