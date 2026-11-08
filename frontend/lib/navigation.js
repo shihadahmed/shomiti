@@ -32,7 +32,7 @@ const NAV_SECTIONS = [
       },
       {
         href: '/savings/my',
-        label: 'settings.mySavings',
+        label: 'savings.myTitle',
         defaultTitle: 'My Savings',
         icon: 'wallet',
         roles: ['member'],
@@ -46,7 +46,7 @@ const NAV_SECTIONS = [
       },
       {
         href: '/savings/my/dues',
-        label: 'settings.dues',
+        label: 'savings.viewDues',
         defaultTitle: 'My Dues',
         icon: 'target',
         roles: ['member'],
@@ -60,14 +60,14 @@ const NAV_SECTIONS = [
       },
       {
         href: '/payments',
-        label: 'settings.payNow',
-        defaultTitle: 'Pay Now',
+        label: 'payments.title',
+        defaultTitle: 'Pay Dues',
         icon: 'creditCard',
         roles: ['member'],
       },
       {
         href: '/payments/offline',
-        label: 'settings.submitOfflinePayment',
+        label: 'payments.offlineTitle',
         defaultTitle: 'Submit Offline Payment',
         icon: 'upload',
         roles: ['member'],
@@ -99,6 +99,7 @@ const NAV_SECTIONS = [
         defaultTitle: 'Meetings & Notices',
         icon: 'calendar',
         roles: ['super_admin', 'general_secretary'],
+        disabled: true,
       },
       {
         href: '/documents',
@@ -109,7 +110,7 @@ const NAV_SECTIONS = [
       },
       {
         href: '/documents/my',
-        label: 'settings.myDocuments',
+        label: 'documents.myTitle',
         defaultTitle: 'My Documents',
         icon: 'folder',
         roles: ['member'],
@@ -120,6 +121,7 @@ const NAV_SECTIONS = [
         defaultTitle: 'Membership Certificate',
         icon: 'award',
         roles: ['member'],
+        disabled: true,
       },
     ],
   },
@@ -140,6 +142,7 @@ const NAV_SECTIONS = [
         defaultTitle: 'Reports',
         icon: 'chart',
         roles: STAFF_ROLES,
+        disabled: true,
       },
       {
         href: '/audit',
@@ -147,6 +150,7 @@ const NAV_SECTIONS = [
         defaultTitle: 'Audit Logs',
         icon: 'clock',
         roles: ['super_admin'],
+        disabled: true,
       },
       {
         href: '/settings',
@@ -157,8 +161,8 @@ const NAV_SECTIONS = [
       },
       {
         href: '/profile',
-        label: 'settings.memberProfile',
-        defaultTitle: 'Member Profile',
+        label: 'profile.title',
+        defaultTitle: 'My Profile',
         icon: 'user',
         roles: ['member'],
       },
@@ -168,6 +172,7 @@ const NAV_SECTIONS = [
         defaultTitle: 'Transaction Statement',
         icon: 'fileText',
         roles: ['member'],
+        disabled: true,
       },
       {
         href: '/notifications',
@@ -207,11 +212,15 @@ export function menuSectionsForRole(role) {
   })).filter((section) => section.items.length > 0);
 }
 
-/** Every href a role can reach, including search-only shortcuts. */
+/**
+ * Every href a role can actually navigate to, including search-only shortcuts.
+ * Items flagged `disabled` are placeholders without a page, so they must never
+ * be offered as a search destination.
+ */
 export function searchHrefsForRole(role) {
   const resolvedRole = resolveRole(role);
   const hrefs = menuSectionsForRole(resolvedRole).flatMap((section) =>
-    section.items.map((item) => item.href),
+    section.items.filter((item) => !item.disabled).map((item) => item.href),
   );
   return Array.from(new Set([...hrefs, ...(SEARCH_ONLY_HREFS[resolvedRole] || [])]));
 }

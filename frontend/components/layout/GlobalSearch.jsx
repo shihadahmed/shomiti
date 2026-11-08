@@ -367,6 +367,7 @@ export default function GlobalSearch({ className = '' }) {
     for (const section of menuSectionsForRole(user?.role)) {
       const sectionLabel = navLabel(tr, section.section, section.title);
       for (const item of section.items) {
+        if (item.disabled) continue;
         if (seen.has(item.href)) continue;
         seen.add(item.href);
         const label = navLabel(tr, item.label, item.defaultTitle);
