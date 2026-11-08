@@ -309,7 +309,14 @@ export default function AppShell({ children }) {
                       <div className="grid grid-cols-2 gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setLang('bn')}
+                          onClick={async () => {
+                            setLang('bn');
+                            try {
+                              await apiClient.post('/auth/update-language', { language: 'bn' });
+                            } catch (error) {
+                              console.error('Failed to save language preference:', error);
+                            }
+                          }}
                           className={`relative flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
                             lang === 'bn'
                               ? 'bg-[#6B1D2F] text-white shadow-sm ring-1 ring-[#D4AF37]/50'
@@ -321,7 +328,14 @@ export default function AppShell({ children }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setLang('en')}
+                          onClick={async () => {
+                            setLang('en');
+                            try {
+                              await apiClient.post('/auth/update-language', { language: 'en' });
+                            } catch (error) {
+                              console.error('Failed to save language preference:', error);
+                            }
+                          }}
                           className={`relative flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
                             lang === 'en'
                               ? 'bg-[#6B1D2F] text-white shadow-sm ring-1 ring-[#D4AF37]/50'

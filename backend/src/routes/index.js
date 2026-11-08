@@ -13,6 +13,7 @@ import auditRoutes from './audit.routes.js';
 import roleRoutes from './role.routes.js';
 import notificationRoutes from './notification.routes.js';
 import uploadRoutes from './upload.routes.js';
+import reportRoutes from './report.routes.js';
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/audit', auditRoutes);
 router.use('/roles', roleRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/reports', reportRoutes);
 
 export default router;

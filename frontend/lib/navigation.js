@@ -99,7 +99,6 @@ const NAV_SECTIONS = [
         defaultTitle: 'Meetings & Notices',
         icon: 'calendar',
         roles: ['super_admin', 'general_secretary'],
-        disabled: true,
       },
       {
         href: '/documents',
@@ -121,7 +120,6 @@ const NAV_SECTIONS = [
         defaultTitle: 'Membership Certificate',
         icon: 'award',
         roles: ['member'],
-        disabled: true,
       },
     ],
   },
@@ -142,7 +140,6 @@ const NAV_SECTIONS = [
         defaultTitle: 'Reports',
         icon: 'chart',
         roles: STAFF_ROLES,
-        disabled: true,
       },
       {
         href: '/audit',
@@ -150,7 +147,6 @@ const NAV_SECTIONS = [
         defaultTitle: 'Audit Logs',
         icon: 'clock',
         roles: ['super_admin'],
-        disabled: true,
       },
       {
         href: '/settings',
@@ -172,7 +168,6 @@ const NAV_SECTIONS = [
         defaultTitle: 'Transaction Statement',
         icon: 'fileText',
         roles: ['member'],
-        disabled: true,
       },
       {
         href: '/notifications',

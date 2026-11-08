@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { apiClient, ApiError } from './api';
-import { t } from './i18n';
+import { t, setLang } from './i18n';
 
 if (typeof window !== 'undefined') {
   try {
@@ -98,9 +98,16 @@ export const useAuthStore = create(
           try {
             const res = await apiClient.get('/auth/me', undefined, { skipAuthRedirect: true });
             const payload = res.data?.data || {};
+            const user = payload.user || null;
+            
+            // Apply user's language preference from backend
+            if (user?.language && ['bn', 'en'].includes(user.language)) {
+              setLang(user.language);
+            }
+            
             set({
-              user: payload.user || null,
-              isAuthenticated: Boolean(payload.user),
+              user,
+              isAuthenticated: Boolean(user),
               isLoading: false,
             });
           } catch (error) {

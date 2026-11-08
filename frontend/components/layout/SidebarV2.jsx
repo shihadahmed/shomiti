@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
@@ -14,7 +14,7 @@ export function Sidebar({ isOpen, onClose, isCollapsed, onCollapseChange, pendin
   const { tr } = useLang();
 
   const role = user?.role || 'member';
-  const menuConfig = menuSectionsForRole(role);
+  const menuConfig = useMemo(() => menuSectionsForRole(role), [role]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -26,9 +26,28 @@ export function Sidebar({ isOpen, onClose, isCollapsed, onCollapseChange, pendin
     return () => window.removeEventListener('resize', handleResize);
   }, [onClose]);
 
+  // ফিক্স: একাধিক মেনু একসাথে অ্যাক্টিভ হওয়া বন্ধ করতে ক্লিন ম্যাচার
   const isActive = (href) => {
-    if (href === '/dashboard') return pathname === '/dashboard';
-    return pathname.startsWith(href);
+    if (!pathname || !href) return false;
+    
+    // ১. হুবহু ইউআরএল মিলে গেলে সরাসরি অ্যাক্টিভ
+    if (pathname === href) return true;
+
+    // ২. ড্যাশবোর্ড যেন অন্য কোনো পেজের সাব-পাথ হিসেবে অ্যাক্টিভ না হয়
+    if (href === '/dashboard') return false;
+
+    // ৩. শুধুমাত্র রিয়েল সাব-রাউটগুলোর জন্য (যেমন: /members/create এ থাকলে /members সিলেক্ট থাকবে)
+    // তবে /savings এবং /savings/my দুটো আলাদা মেনু থাকলে যাতে সংঘর্ষ না হয়:
+    const allHrefs = menuConfig.flatMap((s) => s.items.map((i) => i.href));
+    const hasMoreSpecificMatch = allHrefs.some(
+      (otherHref) => otherHref !== href && otherHref.startsWith(href) && (pathname === otherHref || pathname.startsWith(otherHref + '/'))
+    );
+
+    if (hasMoreSpecificMatch) {
+      return false;
+    }
+
+    return pathname.startsWith(href + '/');
   };
 
   const sidebarWidth = isCollapsed ? 'w-20' : 'w-64';

@@ -37,6 +37,7 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpires: { type: Date, select: false },
     lastLoginAt: Date,
     passwordChangedAt: Date,
+    language: { type: String, enum: ['bn', 'en'], default: 'bn' },
   },
   {
     timestamps: true,

@@ -129,6 +129,25 @@ export const mySchemes = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { items: schemes } });
 });
 
+export const memberStatement = asyncHandler(async (req, res) => {
+  if (!req.user.memberId) {
+    return res.json({
+      success: true,
+      data: { items: [], summary: { totalCredit: 0, totalDebit: 0, balance: 0 }, meta: { total: 0, page: 1, limit: 20, pages: 0 } },
+    });
+  }
+  const result = await savingsService.getMemberStatement(String(req.user.memberId), req.query);
+  res.json({ success: true, data: result });
+});
+
+export const memberStatementExport = asyncHandler(async (req, res) => {
+  if (!req.user.memberId) {
+    return res.status(400).json({ success: false, message: 'No member linked' });
+  }
+  const result = await savingsService.getMemberStatement(String(req.user.memberId), { ...req.query, limit: 10000 });
+  res.json({ success: true, data: result });
+});
+
 export default {
   listDues,
   myDues,
@@ -142,4 +161,8 @@ export default {
   myTransactions,
   transactionDetail,
   memberAccounts,
+  mySavingsDashboard,
+  mySchemes,
+  memberStatement,
+  memberStatementExport,
 };

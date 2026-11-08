@@ -310,7 +310,15 @@ export default function LoginPage() {
                 <button
                   type="button"
                   className={`lang-btn ${lang === 'bn' ? 'bg-brand-700 text-white shadow-sm hover:text-white' : ''}`}
-                  onClick={() => setLang('bn')}
+                  onClick={async () => {
+                    setLang('bn');
+                    try {
+                      const { apiClient } = await import('@/lib/api');
+                      await apiClient.post('/auth/update-language', { language: 'bn' });
+                    } catch (error) {
+                      console.error('Failed to save language preference:', error);
+                    }
+                  }}
                   aria-pressed={lang === 'bn'}
                 >
                   বাংলা
@@ -318,7 +326,15 @@ export default function LoginPage() {
                 <button
                   type="button"
                   className={`lang-btn ${lang === 'en' ? 'bg-brand-700 text-white shadow-sm hover:text-white' : ''}`}
-                  onClick={() => setLang('en')}
+                  onClick={async () => {
+                    setLang('en');
+                    try {
+                      const { apiClient } = await import('@/lib/api');
+                      await apiClient.post('/auth/update-language', { language: 'en' });
+                    } catch (error) {
+                      console.error('Failed to save language preference:', error);
+                    }
+                  }}
                   aria-pressed={lang === 'en'}
                 >
                   EN

@@ -265,7 +265,15 @@ function LoginForm() {
                   className={`rounded px-2.5 py-0.5 text-[11px] font-bold transition ${
                     lang === 'bn' ? 'bg-[#431B25] text-white' : 'text-gray-600 hover:text-gray-900'
                   }`}
-                  onClick={() => setLang('bn')}
+                  onClick={async () => {
+                    setLang('bn');
+                    try {
+                      const { apiClient } = await import('@/lib/api');
+                      await apiClient.post('/auth/update-language', { language: 'bn' });
+                    } catch (error) {
+                      console.error('Failed to save language preference:', error);
+                    }
+                  }}
                 >
                   বাংলা
                 </button>
@@ -274,7 +282,15 @@ function LoginForm() {
                   className={`rounded px-2.5 py-0.5 text-[11px] font-bold transition ${
                     lang === 'en' ? 'bg-[#431B25] text-white' : 'text-gray-600 hover:text-gray-900'
                   }`}
-                  onClick={() => setLang('en')}
+                  onClick={async () => {
+                    setLang('en');
+                    try {
+                      const { apiClient } = await import('@/lib/api');
+                      await apiClient.post('/auth/update-language', { language: 'en' });
+                    } catch (error) {
+                      console.error('Failed to save language preference:', error);
+                    }
+                  }}
                 >
                   EN
                 </button>

@@ -674,6 +674,8 @@ export async function listAccounts(memberId) {
 /** Member savings dashboard: accounts, balances, dues summary, recent transactions */
 export async function getMemberSavingsDashboard(memberId) {
   assertObjectId(memberId, 'member');
+  
+  const schemeService = await import('./scheme.service.js');
 
   const [accounts, duesSummary, recentTransactions, schemes] = await Promise.all([
     SavingsAccount.find({ member: memberId, status: 'active' }).sort({ createdAt: 1 }),
@@ -682,7 +684,7 @@ export async function getMemberSavingsDashboard(memberId) {
       { $group: { _id: '$status', count: { $sum: 1 }, total: { $sum: '$totalDuePaisa' } } },
     ]),
     SavingsTransaction.find({ member: memberId }).sort({ createdAt: -1 }).limit(5).populate('savingsDue', 'dueNo period').populate('account', 'accountNo'),
-    SavingsScheme.find({ members: memberId, status: 'active' }).select('name type interestRate startDate').populate('members', 'code'),
+    schemeService.getMemberSchemes(memberId),
   ]);
 
   const totalBalance = accounts.reduce((sum, a) => sum + (a.balancePaisa || 0), 0);
@@ -728,8 +730,93 @@ export async function getMemberSavingsDashboard(memberId) {
   };
 }
 
+/** Get member transaction statement with summary */
+export async function getMemberStatement(memberId, query = {}) {
+  assertObjectId(memberId, 'member');
+  const { page, limit, skip } = getPagination(query);
+
+  const filter = { member: memberId };
+  
+  if (query.type) filter.type = query.type;
+  if (query.account) filter.account = query.account;
+  if (query.from || query.to) {
+    filter.createdAt = {};
+    if (query.from) filter.createdAt.$gte = new Date(query.from);
+    if (query.to) {
+      const end = new Date(query.to);
+      end.setHours(23, 59, 59, 999);
+      filter.createdAt.$lte = end;
+    }
+  }
+
+  // Get transactions with pagination
+  const [items, total] = await Promise.all([
+    SavingsTransaction.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('account', 'accountNo type')
+      .populate('savingsDue', 'dueNo period')
+      .populate('postedBy', 'name')
+      .lean(),
+    SavingsTransaction.countDocuments(filter),
+  ]);
+
+  // Calculate summary for the filtered period
+  const summaryAgg = await SavingsTransaction.aggregate([
+    { $match: filter },
+    { $group: {
+      _id: null,
+      totalCredit: { 
+        $sum: { 
+          $cond: [
+            { $in: ['$type', ['deposit', 'interest']] }, 
+            '$amountPaisa', 
+            0
+          ] 
+        } 
+      },
+      totalDebit: { 
+        $sum: { 
+          $cond: [
+            { $in: ['$type', ['withdrawal', 'fee']] }, 
+            '$amountPaisa', 
+            0
+          ] 
+        } 
+      },
+      balance: { 
+        $sum: {
+          $switch: {
+            branches: [
+              { case: { $eq: ['$type', 'deposit'] }, then: '$amountPaisa' },
+              { case: { $eq: ['$type', 'withdrawal'] }, then: { $multiply: ['$amountPaisa', -1] } },
+              { case: { $eq: ['$type', 'interest'] }, then: '$amountPaisa' },
+              { case: { $eq: ['$type', 'fee'] }, then: { $multiply: ['$amountPaisa', -1] } },
+              { case: { $eq: ['$type', 'adjustment'] }, then: '$amountPaisa' },
+            ],
+            default: 0
+          }
+        }
+      },
+    } },
+  ]);
+
+  const summary = summaryAgg[0] || { totalCredit: 0, totalDebit: 0, balance: 0 };
+
+  return { 
+    items, 
+    summary: {
+      totalCredit: summary.totalCredit || 0,
+      totalDebit: summary.totalDebit || 0,
+      balance: summary.balance || 0,
+    },
+    meta: paginationMeta(total, page, limit) 
+  };
+}
+
 /** Helper for formatting in service */
-function formatMoney(paisa) {
+export function formatMoney(paisa) {
   return (Math.round(paisa || 0) / 100).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
@@ -746,4 +833,7 @@ export default {
   listTransactions,
   getTransactionById,
   listAccounts,
+  getMemberSavingsDashboard,
+  getMemberStatement,
+  formatMoney,
 };

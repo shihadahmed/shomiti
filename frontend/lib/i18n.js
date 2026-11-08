@@ -1161,6 +1161,21 @@ const en = {
   'certificate.memberSince': 'Member Since',
   'certificate.issuedDate': 'Issued Date',
   'certificate.certificateNumber': 'Certificate Number',
+  'certificate.noCertificate': 'No membership certificate found. Contact the office to request one.',
+  'certificate.footer': 'This certificate is valid for verification purposes. For official use, please contact the cooperative office.',
+
+  // Statement
+  'statement.downloadCsv': 'Download CSV',
+  'statement.credit': 'Credit',
+  'statement.debit': 'Debit',
+  'statement.dateFrom': 'From Date',
+  'statement.dateTo': 'To Date',
+  'statement.filter': 'Filter',
+  'statement.downloadPdf': 'Download PDF',
+  'statement.noTransactions': 'No transactions found for the selected period.',
+
+  // Reports
+  'reports.type': 'Report Type',
 
   // Notifications
   'notifications.title': 'Notifications',
@@ -2429,6 +2444,21 @@ const bn = {
   'certificate.memberSince': 'সদস্য সাক্ষাত',
   'certificate.issuedDate': 'জারি তারিখ',
   'certificate.certificateNumber': 'সার্টিফিকেট নম্বর',
+  'certificate.noCertificate': 'কোনো সদস্য সার্টিফিকেট পাওয়া যায়নি। অনুরোধের জন্য অফিসে যোগাযোগ করুন।',
+  'certificate.footer': 'এই সার্টিফিকেট যাচাইয়ের জন্য বৈধ। অফিসিয়াল ব্যবহারের জন্য সমিতির অফিসে যোগাযোগ করুন।',
+
+  // Statement
+  'statement.downloadCsv': 'সিভিএসভি ডাউনলোড',
+  'statement.credit': 'ক্রেডিট',
+  'statement.debit': 'ডেবিট',
+  'statement.dateFrom': 'শুরুর তারিখ',
+  'statement.dateTo': 'শেষ তারিখ',
+  'statement.filter': 'ফিল্টার',
+  'statement.downloadPdf': 'পিডিএফ ডাউনলোড',
+  'statement.noTransactions': 'নির্বাচিত সময়ের জন্য কোনো লেনদেন পাওয়া যায়নি।',
+
+  // Reports
+  'reports.type': 'রিপোর্টের ধরন',
 
   // Notifications
   'notifications.title': 'বিজ্ঞপ্তি',
@@ -2700,9 +2730,9 @@ const STORAGE_KEY = 'shomiti.lang';
 const LOCALES = ['bn', 'en'];
 
 export function getLang() {
-  if (typeof window === 'undefined') return 'bn';
+  if (typeof window === 'undefined') return 'en';
   const stored = localStorage.getItem(STORAGE_KEY);
-  return LOCALES.includes(stored) ? stored : 'bn';
+  return LOCALES.includes(stored) ? stored : 'en';
 }
 
 export function setLang(lang) {

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { ReactNode, forwardRef, useState, useRef, useEffect } from 'react';
+import React, { ReactNode, forwardRef, useState, useRef, useEffect, useCallback } from 'react';
 import { t, getLang } from '@/lib/i18n';
+import { useLang } from '@/lib/useLang';
 import {
   LayoutGrid,
   Users,
@@ -329,6 +330,48 @@ export function formatDate(value, opts) {
   }).format(date);
 }
 
+/**
+ * Hook that provides locale-aware formatters that update when language changes.
+ * Use this instead of importing formatMoney/formatDate directly for reactive updates.
+ */
+export function useFormatters() {
+  const { lang } = useLang();
+  
+  const formatMoney = React.useCallback((value, opts) => {
+    const locale = lang === 'bn' ? 'bn-BD' : 'en-BD';
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'BDT',
+      notation: opts?.compact ? 'compact' : 'standard',
+      maximumFractionDigits: opts?.compact ? 1 : 2,
+      minimumFractionDigits: opts?.compact ? 0 : 0,
+    }).format(value / 100);
+  }, [lang]);
+  
+  const formatDate = React.useCallback((value, opts) => {
+    if (!value) return t('common.na');
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return t('common.na');
+    const locale = lang === 'bn' ? 'bn-BD' : 'en-GB';
+    return new Intl.DateTimeFormat(locale, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      ...(opts?.time ? { hour: '2-digit', minute: '2-digit' } : {}),
+    }).format(date);
+  }, [lang]);
+  
+  const formatNumber = React.useCallback((value, opts) => {
+    const locale = lang === 'bn' ? 'bn-BD' : 'en-BD';
+    return new Intl.NumberFormat(locale, {
+      notation: opts?.compact ? 'compact' : 'standard',
+      maximumFractionDigits: opts?.maximumFractionDigits ?? 0,
+    }).format(value);
+  }, [lang]);
+  
+  return { formatMoney, formatDate, formatNumber };
+}
+
 export function Pagination({ meta, onPage, className = '' }) {
   if (!meta || !meta.total) return null;
   const { page = 1, pages = 1, total = 0, limit = 20 } = meta;
@@ -578,4 +621,39 @@ export function FormatDate({ date, showTime = false, className = '' }) {
     ...(showTime ? { hour: '2-digit', minute: '2-digit' } : {}),
   }).format(d);
   return <span className={`text-sm text-brand-700 font-mono ${className}`}>{formatted}</span>;
+}
+
+// Card Component
+export function Card({ children, className = '', ...props }) {
+  return (
+    <div className={`bg-white rounded-xl border border-brand-200 shadow-sm ${className}`} {...props}>
+      {children}
+    </div>
+  );
+}
+
+// Alert Component
+export function Alert({ variant = 'info', children, className = '', icon: IconComponent }) {
+  const variantStyles = {
+    info: 'bg-blue-50 border-blue-200 text-blue-800',
+    success: 'bg-green-50 border-green-200 text-green-800',
+    warning: 'bg-amber-50 border-amber-200 text-amber-800',
+    danger: 'bg-red-50 border-red-200 text-red-800',
+    default: 'bg-brand-50 border-brand-200 text-brand-800',
+  };
+  
+  const iconMap = {
+    info: 'info',
+    success: 'check',
+    warning: 'alert',
+    danger: 'xCircle',
+    default: 'info',
+  };
+  
+  return (
+    <div className={`flex items-start gap-3 p-4 rounded-lg border ${variantStyles[variant] || variantStyles.info} ${className}`} role="alert">
+      {IconComponent && <Icon name={iconMap[variant] || 'info'} className="h-5 w-5 mt-0.5 shrink-0" />}
+      <div className="flex-1">{children}</div>
+    </div>
+  );
 }

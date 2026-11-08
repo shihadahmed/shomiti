@@ -66,4 +66,8 @@ router.get(
 );
 router.get('/members/:memberId/accounts', savingsController.memberAccounts);
 
+// Member statement
+router.get('/statement', savingsController.memberStatement);
+router.get('/statement/export', savingsController.memberStatementExport);
+
 export default router;

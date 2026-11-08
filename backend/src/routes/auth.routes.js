@@ -30,6 +30,12 @@ router.post(
   authController.changePassword,
 );
 
+router.post(
+  '/update-language',
+  authenticate,
+  authController.updateLanguage,
+);
+
 // KYC profile submission (the authenticated member)
 router.get(
   '/users/me/kyc',

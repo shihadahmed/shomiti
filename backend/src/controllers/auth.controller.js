@@ -1,4 +1,5 @@
 import config from '../config/env.js';
+import User from '../models/User.js';
 import { cookieOptions } from '../utils/jwt.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import * as authService from '../services/auth.service.js';
@@ -28,6 +29,25 @@ export const me = asyncHandler(async (req, res) => {
   // Ensure photo is included (middleware attaches it as a property on the document)
   if (req.user.photo) user.photo = req.user.photo;
   res.json({ success: true, data: { user } });
+});
+
+export const updateLanguage = asyncHandler(async (req, res) => {
+  const { language } = req.body;
+  if (!['bn', 'en'].includes(language)) {
+    return res.status(400).json({ success: false, message: 'Invalid language' });
+  }
+  
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { language },
+    { new: true, select: '-passwordHash -tokenVersion -resetPasswordToken -resetPasswordExpires' }
+  );
+  
+  const userData = user.toJSON ? user.toJSON() : { ...user };
+  userData.permissions = Array.isArray(user.permissions) ? user.permissions : [];
+  if (user.photo) userData.photo = user.photo;
+  
+  res.json({ success: true, data: { user: userData } });
 });
 
 export const setupPassword = asyncHandler(async (req, res) => {
