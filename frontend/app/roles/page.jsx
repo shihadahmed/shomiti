@@ -23,6 +23,7 @@ const PERMISSION_CATEGORIES = [
       { key: 'members.create', labelKey: 'perm.members.create' },
       { key: 'members.edit', labelKey: 'perm.members.edit' },
       { key: 'members.suspend', labelKey: 'perm.members.suspend' },
+      { key: 'members.view_own', labelKey: 'perm.members.view_own' },
     ],
   },
   {
@@ -32,6 +33,7 @@ const PERMISSION_CATEGORIES = [
       { key: 'savings.view', labelKey: 'perm.savings.view' },
       { key: 'savings.configure', labelKey: 'perm.savings.configure' },
       { key: 'savings.trigger_dues', labelKey: 'perm.savings.trigger_dues' },
+      { key: 'savings.view_own', labelKey: 'perm.savings.view_own' },
     ],
   },
   {
@@ -42,6 +44,8 @@ const PERMISSION_CATEGORIES = [
       { key: 'payments.online_logs', labelKey: 'perm.payments.online_logs' },
       { key: 'payments.verify_slips', labelKey: 'perm.payments.verify_slips' },
       { key: 'payments.reject_slips', labelKey: 'perm.payments.reject_slips' },
+      { key: 'payments.view_own', labelKey: 'perm.payments.view_own' },
+      { key: 'payments.create_own', labelKey: 'perm.payments.create_own' },
     ],
   },
   {
@@ -75,9 +79,12 @@ const PERMISSION_CATEGORIES = [
     key: 'documents',
     labelKey: 'perm.documents',
     permissions: [
+      { key: 'documents.view', labelKey: 'perm.documents.view' },
       { key: 'documents.upload', labelKey: 'perm.documents.upload' },
       { key: 'documents.delete', labelKey: 'perm.documents.delete' },
       { key: 'documents.certificates', labelKey: 'perm.documents.certificates' },
+      { key: 'documents.view_own', labelKey: 'perm.documents.view_own' },
+      { key: 'documents.certificates_own', labelKey: 'perm.documents.certificates_own' },
     ],
   },
   {
@@ -87,6 +94,7 @@ const PERMISSION_CATEGORIES = [
       { key: 'reports.view_financial', labelKey: 'perm.reports.view_financial' },
       { key: 'reports.export', labelKey: 'perm.reports.export' },
       { key: 'reports.audit_logs', labelKey: 'perm.reports.audit_logs' },
+      { key: 'reports.view_own_statement', labelKey: 'perm.reports.view_own_statement' },
     ],
   },
   {
@@ -98,6 +106,13 @@ const PERMISSION_CATEGORIES = [
       { key: 'roles.update', labelKey: 'perm.roles.update' },
       { key: 'roles.delete', labelKey: 'perm.roles.delete' },
       { key: 'roles.assign', labelKey: 'perm.roles.assign' },
+    ],
+  },
+  {
+    key: 'users',
+    labelKey: 'perm.users',
+    permissions: [
+      { key: 'users.manage_kyc', labelKey: 'perm.users.manage_kyc' },
     ],
   },
 ];

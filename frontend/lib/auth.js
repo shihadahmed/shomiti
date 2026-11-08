@@ -12,14 +12,6 @@ if (typeof window !== 'undefined') {
   } catch {}
 }
 
-const rolePermissions = {
-  super_admin: { finance: true, approve: true, members: true, ledger: true },
-  treasurer: { finance: true, approve: true, members: true, ledger: true },
-  general_secretary: { finance: false, approve: true, members: false, ledger: true },
-  president: { finance: false, approve: true, members: false, ledger: true },
-  member: { finance: false, approve: false, members: false, ledger: false },
-};
-
 export function translateError(error) {
   if (error instanceof ApiError) {
     if (error.code === 'INVALID_CREDENTIALS') return t('login.badCredentials');
@@ -34,110 +26,119 @@ export function translateError(error) {
 
 export const useAuthStore = create(
   persist(
-    (set, get) => ({
-      user: null,
-      token: null,
-      isLoading: false,
-      isAuthenticated: false,
-      error: null,
-      lastSessionFetch: 0,
+    (set, get) => {
+      /**
+       * Backend-derived permissions are the single source of truth. The role is
+       * only used for display; feature access must check the permission list
+       * returned by /auth/me so custom roles behave correctly.
+       */
+      const hasPermission = (permission) => {
+        const user = get().user;
+        if (!user) return false;
+        return Array.isArray(user.permissions) && user.permissions.includes(permission);
+      };
 
-      login: async (identifier, password) => {
-        set({ isLoading: true, error: null });
-        try {
-          const res = await apiClient.post('/auth/login', { identifier, password });
-          const payload = res.data?.data || {};
-          set({
-            user: payload.user || null,
-            token: payload.token || null,
-            isAuthenticated: Boolean(payload.user),
-            isLoading: false,
-            error: null,
-          });
-          return true;
-        } catch (error) {
-          set({
-            isLoading: false,
-            isAuthenticated: false,
-            user: null,
-            token: null,
-            error: translateError(error),
-          });
-          return false;
-        }
-      },
+      return {
+        user: null,
+        token: null,
+        isLoading: false,
+        isAuthenticated: false,
+        error: null,
+        lastSessionFetch: 0,
 
-      logout: async () => {
-        try {
-          await apiClient.post('/auth/logout', {});
-        } catch {
-          // ignore network errors on sign-out
-        }
-        set({ user: null, token: null, isAuthenticated: false, error: null });
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-      },
-
-      loadSession: async () => {
-        // Prevent multiple simultaneous calls
-        if (get().isLoading) return;
-
-        const now = Date.now();
-        const lastFetch = get().lastSessionFetch || 0;
-        if (now - lastFetch < 5000 && get().user) {
-          // Return cached session if less than 5 seconds old
-          return;
-        }
-
-        set({ isLoading: true, lastSessionFetch: now });
-        try {
-          const res = await apiClient.get('/auth/me', undefined, { skipAuthRedirect: true });
-          const payload = res.data?.data || {};
-          set({
-            user: payload.user || null,
-            isAuthenticated: Boolean(payload.user),
-            isLoading: false,
-          });
-        } catch (error) {
-          // Only clear session on genuine auth failure (401)
-          // Transient errors (network, 429, 500, CORS) should NOT log the user out
-          if (error instanceof ApiError && error.status === 401) {
-            set({ user: null, isAuthenticated: false, isLoading: false });
+        login: async (identifier, password) => {
+          set({ isLoading: true, error: null });
+          try {
+            const res = await apiClient.post('/auth/login', { identifier, password });
+            const payload = res.data?.data || {};
+            set({
+              user: payload.user || null,
+              token: payload.token || null,
+              isAuthenticated: Boolean(payload.user),
+              isLoading: false,
+              error: null,
+            });
+            return true;
+          } catch (error) {
+            set({
+              isLoading: false,
+              isAuthenticated: false,
+              user: null,
+              token: null,
+              error: translateError(error),
+            });
+            return false;
           }
-          // For other errors, keep existing state; UI will surface via useApi hooks
-        }
-      },
+        },
 
-      clearError: () => set({ error: null }),
+        logout: async () => {
+          try {
+            await apiClient.post('/auth/logout', {});
+          } catch {
+            // ignore network errors on sign-out
+          }
+          set({ user: null, token: null, isAuthenticated: false, error: null });
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+        },
 
-      setUser: (user) => set({ user }),
+        loadSession: async () => {
+          // Prevent multiple simultaneous calls
+          if (get().isLoading) return;
 
-      hasRole: (...roles) => {
-        const user = get().user;
-        return Boolean(user && roles.includes(user.role));
-      },
+          const now = Date.now();
+          const lastFetch = get().lastSessionFetch || 0;
+          if (now - lastFetch < 5000 && get().user) {
+            // Return cached session if less than 5 seconds old
+            return;
+          }
 
-      canManageFinance: () => {
-        const user = get().user;
-        return user ? rolePermissions[user.role]?.finance ?? false : false;
-      },
+          set({ isLoading: true, lastSessionFetch: now });
+          try {
+            const res = await apiClient.get('/auth/me', undefined, { skipAuthRedirect: true });
+            const payload = res.data?.data || {};
+            set({
+              user: payload.user || null,
+              isAuthenticated: Boolean(payload.user),
+              isLoading: false,
+            });
+          } catch (error) {
+            // Only clear session on genuine auth failure (401)
+            // Transient errors (network, 429, 500, CORS) should NOT log the user out
+            if (error instanceof ApiError && error.status === 401) {
+              set({ user: null, isAuthenticated: false, isLoading: false });
+            }
+            // For other errors, keep existing state; UI will surface via useApi hooks
+          }
+        },
 
-      canApprove: () => {
-        const user = get().user;
-        return user ? rolePermissions[user.role]?.approve ?? false : false;
-      },
+        clearError: () => set({ error: null }),
 
-      canManageMembers: () => {
-        const user = get().user;
-        return user ? rolePermissions[user.role]?.members ?? false : false;
-      },
+        setUser: (user) => set({ user }),
 
-      canSeeLedger: () => {
-        const user = get().user;
-        return user ? rolePermissions[user.role]?.ledger ?? false : false;
-      },
-    }),
+        hasRole: (...roles) => {
+          const user = get().user;
+          return Boolean(user && roles.includes(user.role));
+        },
+
+        hasPermission,
+
+        canManageFinance: () =>
+          hasPermission('savings.configure') || hasPermission('payments.verify_slips'),
+
+        canApprove: () =>
+          hasPermission('expenses.approve_tier1') ||
+          hasPermission('expenses.approve_tier2') ||
+          hasPermission('expenses.approve_tier3') ||
+          hasPermission('payments.verify_slips'),
+
+        canManageMembers: () =>
+          hasPermission('members.create') || hasPermission('members.edit'),
+
+        canSeeLedger: () => hasPermission('ledger.view'),
+      };
+    },
     {
       name: 'shomiti-auth',
       storage: createJSONStorage(() => sessionStorage),
@@ -161,6 +162,7 @@ export function useAuth() {
     loadSession: state.loadSession,
     clearError: state.clearError,
     hasRole: state.hasRole,
+    hasPermission: state.hasPermission,
     canManageFinance: state.canManageFinance,
     canApprove: state.canApprove,
     canManageMembers: state.canManageMembers,
