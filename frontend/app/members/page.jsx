@@ -18,6 +18,7 @@ import {
   PageHeader,
   EmptyState,
   LoadingSpinner,
+  Avatar,
   formatMoney,
   formatDate,
   StatusBadge,
@@ -272,16 +273,19 @@ export default function MembersPage() {
                         </td>
 
                         <td className="px-5 py-3.5">
-                          <div className="flex flex-col">
-                            <Link
-                              href={`/members/${member._id}`}
-                              className="font-semibold text-brand-900 hover:text-brand-600 transition"
-                            >
-                              {memberName}
-                            </Link>
-                            <span className="text-[11px] text-brand-500 font-mono">
-                              {member.email || member.nid || ''}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            <Avatar name={memberName} src={member.photo} size="sm" />
+                            <div className="flex min-w-0 flex-col">
+                              <Link
+                                href={`/members/${member._id}`}
+                                className="font-semibold text-brand-900 hover:text-brand-600 transition"
+                              >
+                                {memberName}
+                              </Link>
+                              <span className="text-[11px] text-brand-500 font-mono">
+                                {member.email || member.nid || ''}
+                              </span>
+                            </div>
                           </div>
                         </td>
 
@@ -290,7 +294,7 @@ export default function MembersPage() {
                         </td>
 
                         <td className="whitespace-nowrap px-4 py-3.5 text-xs text-brand-600">
-                          {member.joinedAt ? formatDate(member.joinedAt) : tr('common.na')}
+                          {member.joinDate ? formatDate(member.joinDate) : tr('common.na')}
                         </td>
 
                         <td className="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm font-bold text-emerald-700">
