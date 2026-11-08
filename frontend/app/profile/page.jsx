@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { useApi, apiPatch } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
+import MemberProfileView from '@/components/members/MemberProfileView';
 import {
   Icon,
   Button,
@@ -135,9 +136,7 @@ function normalizeErrorField(field) {
   return raw || 'submit';
 }
 
-function KYCStatusBanner({ status, rejectionReason, submittedAt, hasPendingUpdate, updateSubmittedAt, userName }) {
-  const { tr } = useLang();
-
+function KYCStatusBanner({ status, rejectionReason, submittedAt, hasPendingUpdate, updateSubmittedAt, userName, tr }) {
   if (status === 'active' && hasPendingUpdate) {
     return (
       <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
@@ -284,6 +283,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (profileLoading || !profileData) return;
     const profile = profileData.profile || profileData;
+    const member = profileData.member || profile.member;
     const pendingUpdate =
       profile.status === 'active'
       && profile.hasPendingKycUpdate
@@ -294,7 +294,7 @@ export default function ProfilePage() {
     setSubmittedAt(profile.kycSubmittedAt || null);
     setHasPendingUpdate(Boolean(profile.status === 'active' && profile.hasPendingKycUpdate));
     setUpdateSubmittedAt(profile.kycUpdateSubmittedAt || null);
-    setForm(buildForm(pendingUpdate || profile.profileData || {}, profile));
+    setForm(buildForm(pendingUpdate || profile.profileData || {}, member));
     setErrors({});
   }, [profileData, profileLoading]);
 
@@ -403,12 +403,11 @@ export default function ProfilePage() {
     return <AppShell><EmptyState icon="alert" title={tr('common.error')} description={profileError} className="p-12" /></AppShell>;
   }
 
-  const member = profileData?.member;
+  const profile = profileData?.profile || profileData;
+  const member = profileData?.member || profile?.member;
   if (!member) {
     return <AppShell><EmptyState icon="user" title={tr('profile.noMember')} description={tr('profile.noMemberDesc')} className="p-12" /></AppShell>;
   }
-
-  const statusLabel = tr(KYC_STATUS_LABELS[status] || status);
 
   return (
     <AppShell>
@@ -433,6 +432,7 @@ export default function ProfilePage() {
         hasPendingUpdate={hasPendingUpdate}
         updateSubmittedAt={updateSubmittedAt}
         userName={user?.name}
+        tr={tr}
       />
 
       {/* Profile Card */}
@@ -765,162 +765,12 @@ export default function ProfilePage() {
             </FormActions>
           </form>
         ) : (
-          <div className="p-5">
-            {/* Member Photo & Basic Info */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="flex-shrink-0">
-                {form.photo ? (
-                  <img
-                    src={form.photo}
-                    alt={form.fullName || member.code}
-                    className="h-24 w-24 rounded-xl object-cover ring-2 ring-brand-200"
-                  />
-                ) : (
-                  <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-brand-100 text-brand-400">
-                    <Icon name="user" className="h-12 w-12" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0 text-center sm:text-left">
-                <h2 className="text-xl font-bold text-brand-900">{form.fullName || member.fullName}</h2>
-                {form.fullNameBn && (
-                  <p className="mt-1 text-brand-600">{form.fullNameBn}</p>
-                )}
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-3 sm:justify-start">
-                  <Badge status={status} customLabels={KYC_STATUS_LABELS} size="lg" />
-                  <span className="px-3 py-1 rounded-full bg-brand-100 text-sm font-mono text-brand-700">
-                    {tr('settings.memberCode')}: {member.code}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Member Details */}
-            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {form.fatherHusbandName && (
-                <div>
-                  <dt className="text-sm font-medium text-brand-500">{tr('members.fatherHusbandName')}</dt>
-                  <dd className="mt-1 text-brand-900">{form.fatherHusbandName}</dd>
-                </div>
-              )}
-              {form.motherName && (
-                <div>
-                  <dt className="text-sm font-medium text-brand-500">{tr('members.motherName')}</dt>
-                  <dd className="mt-1 text-brand-900">{form.motherName}</dd>
-                </div>
-              )}
-              {form.dateOfBirth && (
-                <div>
-                  <dt className="text-sm font-medium text-brand-500">{tr('members.dob')}</dt>
-                  <dd className="mt-1 text-brand-900">{formatDate(form.dateOfBirth)}</dd>
-                </div>
-              )}
-              {form.nid && (
-                <div>
-                  <dt className="text-sm font-medium text-brand-500">{tr('members.nid')}</dt>
-                  <dd className="mt-1 font-mono text-brand-900">{form.nid}</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-sm font-medium text-brand-500">{tr('members.phone')}</dt>
-                <dd className="mt-1 font-mono text-brand-900">{form.phone}</dd>
-              </div>
-              {form.email && (
-                <div>
-                  <dt className="text-sm font-medium text-brand-500">{tr('members.email')}</dt>
-                  <dd className="mt-1 text-brand-900">{form.email}</dd>
-                </div>
-              )}
-              {form.occupation && (
-                <div>
-                  <dt className="text-sm font-medium text-brand-500">{tr('members.occupation')}</dt>
-                  <dd className="mt-1 text-brand-900">{form.occupation}</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-sm font-medium text-brand-500">{tr('profile.memberCode')}</dt>
-                <dd className="mt-1 font-mono text-brand-900">{member.code}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-brand-500">{tr('profile.joinedDate')}</dt>
-                <dd className="mt-1 text-brand-900">{formatDate(member.createdAt)}</dd>
-              </div>
-              {form.presentAddress && (
-                <div className="sm:col-span-2">
-                  <dt className="text-sm font-medium text-brand-500">{tr('members.presentAddress')}</dt>
-                  <dd className="mt-1 text-brand-700 whitespace-pre-wrap">{form.presentAddress}</dd>
-                </div>
-              )}
-              {form.permanentAddress && form.permanentAddress !== form.presentAddress && (
-                <div className="sm:col-span-2">
-                  <dt className="text-sm font-medium text-brand-500">{tr('members.permanentAddress')}</dt>
-                  <dd className="mt-1 text-brand-700 whitespace-pre-wrap">{form.permanentAddress}</dd>
-                </div>
-              )}
-            </dl>
-
-            {/* Nominees Display */}
-            {form.nominees && form.nominees.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-brand-200">
-                <h3 className="text-lg font-semibold text-brand-900 mb-4">{tr('profile.nominees')}</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-brand-200/70 text-left text-sm">
-                    <thead className="bg-[#FAF7F2] text-[11px] font-bold uppercase tracking-wider text-brand-600">
-                      <tr>
-                        <th scope="col" className="px-5 py-3">{tr('profile.nomineeName')}</th>
-                        <th scope="col" className="px-4 py-3">{tr('profile.relationship')}</th>
-                        <th scope="col" className="px-4 py-3">{tr('profile.share')}</th>
-                        <th scope="col" className="px-4 py-3">{tr('profile.nomineeNid')}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-brand-100/80 bg-white">
-                      {form.nominees.map((nominee, idx) => (
-                        <tr key={idx} className="transition-colors hover:bg-brand-50/40">
-                          <td className="px-5 py-3 font-medium text-brand-900">{nominee.name}</td>
-                          <td className="px-4 py-3 text-brand-700">{tr(RELATIONSHIP_LABELS[nominee.relation] || nominee.relation)}</td>
-                          <td className="px-4 py-3 text-brand-700">{nominee.percentage}%</td>
-                          <td className="px-4 py-3 text-brand-700 font-mono">{nominee.nid || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Documents Display */}
-            {(form.photo || form.nidDocument) && (
-              <div className="mt-6 pt-6 border-t border-brand-200">
-                <h3 className="text-lg font-semibold text-brand-900 mb-4">{tr('kyc.sectionDocuments')}</h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {form.photo && (
-                    <div className="rounded-xl border border-brand-200 p-3">
-                      <p className="text-sm font-medium text-brand-500 mb-2">{tr('members.applicantPhoto')}</p>
-                      <img
-                        src={form.photo}
-                        alt={form.fullName || 'Photo'}
-                        className="w-full h-40 object-cover rounded-lg"
-                      />
-                    </div>
-                  )}
-                  {form.nidDocument && (
-                    <div className="rounded-xl border border-brand-200 p-3">
-                      <p className="text-sm font-medium text-brand-500 mb-2">{tr('members.nidDocument')}</p>
-                      <a
-                        href={form.nidDocument}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-brand-600 hover:text-brand-800"
-                      >
-                        <Icon name="externalLink" className="h-4 w-4" />
-                        {tr('kyc.viewDocument')}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <MemberProfileView
+            member={member}
+            memberUser={profile}
+            showPortalAccess={false}
+            tr={tr}
+          />
         )}
       </div>
     </AppShell>

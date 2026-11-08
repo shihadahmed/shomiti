@@ -172,7 +172,7 @@ function buildKycProfileData(user, member) {
 }
 
 /** Resolves the Member linked to a User, falling back to the reverse link for legacy records. */
-async function findMemberForUser(user, { session } = {}) {
+async function findMemberForUser(user, { session, autoLink = false } = {}) {
   const queryOptions = session ? { session } : {};
 
   if (user.memberId) {
@@ -180,7 +180,15 @@ async function findMemberForUser(user, { session } = {}) {
     if (member) return member;
   }
 
-  return Member.findOne({ userId: user._id }, null, queryOptions);
+  const member = await Member.findOne({ userId: user._id }, null, queryOptions);
+  
+  // Auto-link the member to the user if found via reverse lookup and not in a transaction
+  if (member && !session && autoLink && !user.memberId) {
+    user.memberId = member._id;
+    await user.save();
+  }
+  
+  return member;
 }
 
 function buildNominees(input, existingNominees = []) {
@@ -328,12 +336,13 @@ function translateDuplicateKeyError(error) {
 
 /** Return the current user's KYC profile summary with member-backed defaults. */
 export async function getMyKyc(userId) {
-  const user = await User.findById(userId).select(USER_KYC_FIELDS).lean();
+  const user = await User.findById(userId).select(USER_KYC_FIELDS);
   if (!user) throw ApiError.notFound('User not found.', 'USER_NOT_FOUND');
 
-  const member = await findMemberForUser(user);
+  const member = await findMemberForUser(user, { autoLink: true });
   return {
-    ...user,
+    ...user.toJSON(),
+    member,
     profileData: buildKycProfileData(user, member),
   };
 }
