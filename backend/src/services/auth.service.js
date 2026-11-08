@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import Member from '../models/Member.js';
+import Role from '../models/Role.js';
 import ApiError from '../utils/ApiError.js';
 import { hashPassword, generateTemporaryPassword, createSetupToken, hashToken } from '../utils/password.js';
 import { signAccessToken } from '../utils/jwt.js';
@@ -9,7 +10,7 @@ import * as emailService from './email.service.js';
 
 /** Attach profile photo to user object from profileData or Member record */
 async function attachProfilePhoto(user) {
-  const userObj = user.toJSON ? user.toJSON() : user;
+  const userObj = user.toJSON ? user.toJSON() : { ...user };
   if (user.profileData?.photo) {
     userObj.photo = user.profileData.photo;
   } else if (user.memberId) {
@@ -18,6 +19,15 @@ async function attachProfilePhoto(user) {
       userObj.photo = member.photo;
     }
   }
+  return userObj;
+}
+
+/** Resolve the role's permission list and attach it to the serialisable user. */
+async function attachPermissions(userObj, roleName) {
+  const role = roleName
+    ? await Role.findOne({ name: roleName }).select('permissions').lean()
+    : null;
+  userObj.permissions = role?.permissions || [];
   return userObj;
 }
 
@@ -47,7 +57,8 @@ export async function login(identifier, password, req) {
 
   const token = signAccessToken(user);
   const userWithPhoto = await attachProfilePhoto(user);
-  return { user: userWithPhoto, token };
+  const userWithPermissions = await attachPermissions(userWithPhoto, user.role);
+  return { user: userWithPermissions, token };
 }
 
 export async function changePassword(user, { currentPassword, newPassword }, req) {
@@ -76,7 +87,8 @@ export async function changePassword(user, { currentPassword, newPassword }, req
   });
 
   const token = signAccessToken(record);
-  return { user: record.toJSON(), token };
+  const userWithPermissions = await attachPermissions(record.toJSON(), record.role);
+  return { user: userWithPermissions, token };
 }
 
 /**

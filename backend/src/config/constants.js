@@ -265,6 +265,7 @@ export const PERMISSION_CATEGORIES = Object.freeze([
       { key: 'members.create', label: { en: 'Create Member', bn: 'সদস্য তৈরি' }, description: { en: 'Add new members', bn: 'নতুন সদস্য যোগ করুন' } },
       { key: 'members.edit', label: { en: 'Edit Member', bn: 'সদস্য সম্পাদনা' }, description: { en: 'Edit member details', bn: 'সদস্যের বিবরণ সম্পাদনা করুন' } },
       { key: 'members.suspend', label: { en: 'Suspend/Archive Member', bn: 'সদস্য স্থগিত/আর্কাইভ' }, description: { en: 'Suspend or archive members', bn: 'সদস্য স্থগিত বা আর্কাইভ করুন' } },
+      { key: 'members.view_own', label: { en: 'View Own Profile', bn: 'নিজের প্রোফাইল দেখুন' }, description: { en: 'View own member profile and linked account details', bn: 'নিজের সদস্য প্রোফাইল ও সংযুক্ত অ্যাকাউন্টের তথ্য দেখুন' } },
     ],
   },
   {
@@ -274,6 +275,7 @@ export const PERMISSION_CATEGORIES = Object.freeze([
       { key: 'savings.view', label: { en: 'View Savings', bn: 'সঞ্চয় দেখুন' }, description: { en: 'View savings accounts and transactions', bn: 'সঞ্চয় হিসাব ও লেনদেন দেখুন' } },
       { key: 'savings.configure', label: { en: 'Configure Rates', bn: 'রেট কনফিগার' }, description: { en: 'Configure savings rates and dues', bn: 'সঞ্চয় রেট ও বকেয়া কনফিগার করুন' } },
       { key: 'savings.trigger_dues', label: { en: 'Trigger Dues', bn: 'বকেয়া ট্রিগার' }, description: { en: 'Generate and trigger savings dues', bn: 'সঞ্চয় বকেয়া তৈরি ও চালু করুন' } },
+      { key: 'savings.view_own', label: { en: 'View Own Savings', bn: 'নিজের সঞ্চয় দেখুন' }, description: { en: 'View own savings accounts, dues and transactions', bn: 'নিজের সঞ্চয় অ্যাকাউন্ট, বকেয়া ও লেনদেন দেখুন' } },
     ],
   },
   {
@@ -284,6 +286,8 @@ export const PERMISSION_CATEGORIES = Object.freeze([
       { key: 'payments.online_logs', label: { en: 'Online Logs', bn: 'অনলাইন লগ' }, description: { en: 'View online payment gateway logs', bn: 'অনলাইন পেমেন্ট গেটওয়ে লগ দেখুন' } },
       { key: 'payments.verify_slips', label: { en: 'Verify Manual Slips', bn: 'ম্যানুয়াল স্লিপ যাচাই' }, description: { en: 'Approve/reject manual bank slip uploads', bn: 'ম্যানুয়াল ব্যাংক স্লিপ অনুমোদন/প্রত্যাখ্যান' } },
       { key: 'payments.reject_slips', label: { en: 'Reject Slips', bn: 'স্লিপ প্রত্যাখ্যান' }, description: { en: 'Reject payment slips with reason', bn: 'কারণ সহ পেমেন্ট স্লিপ প্রত্যাখ্যান' } },
+      { key: 'payments.view_own', label: { en: 'View Own Payments', bn: 'নিজের পেমেন্ট দেখুন' }, description: { en: 'View own payment history and receipts', bn: 'নিজের পেমেন্ট ইতিহাস ও রসিদ দেখুন' } },
+      { key: 'payments.create_own', label: { en: 'Submit Own Payment', bn: 'নিজের পেমেন্ট জমা দিন' }, description: { en: 'Submit own offline payment slips for verification', bn: 'যাচাইয়ের জন্য নিজের অফলাইন পেমেন্ট স্লিপ জমা দিন' } },
     ],
   },
   {
@@ -317,9 +321,12 @@ export const PERMISSION_CATEGORIES = Object.freeze([
     key: 'documents',
     label: { en: 'Documents', bn: 'নথিপত্র' },
     permissions: [
+      { key: 'documents.view', label: { en: 'View Documents', bn: 'নথি দেখুন' }, description: { en: 'View the cooperative document vault', bn: 'সমবায়ের নথি ভান্ডার দেখুন' } },
       { key: 'documents.upload', label: { en: 'Upload Documents', bn: 'নথি আপলোড' }, description: { en: 'Upload documents to vault', bn: 'ভান্ডারে নথি আপলোড' } },
       { key: 'documents.delete', label: { en: 'Delete/Archive Documents', bn: 'নথি মুছুন/আর্কাইভ' }, description: { en: 'Delete or archive documents', bn: 'নথি মুছুন বা আর্কাইভ করুন' } },
       { key: 'documents.certificates', label: { en: 'Manage Certificates', bn: 'সার্টিফিকেট পরিচালনা' }, description: { en: 'Generate and manage membership certificates', bn: 'সদস্য সার্টিফিকেট তৈরি ও পরিচালনা' } },
+      { key: 'documents.view_own', label: { en: 'View Own Documents', bn: 'নিজের নথি দেখুন' }, description: { en: 'View documents shared with the member', bn: 'সদস্যের সাথে শেয়ার করা নথি দেখুন' } },
+      { key: 'documents.certificates_own', label: { en: 'Own Certificates', bn: 'নিজের সার্টিফিকেট' }, description: { en: 'Download own membership and savings certificates', bn: 'নিজের সদস্যপদ ও সঞ্চয়ের সার্টিফিকেট ডাউনলোড করুন' } },
     ],
   },
   {
@@ -329,6 +336,7 @@ export const PERMISSION_CATEGORIES = Object.freeze([
       { key: 'reports.view_financial', label: { en: 'View Financial Reports', bn: 'আর্থিক রিপোর্ট দেখুন' }, description: { en: 'View collection, dues, expense reports', bn: 'আদায়, বকেয়া, ব্যয় রিপোর্ট দেখুন' } },
       { key: 'reports.export', label: { en: 'Export CSV/PDF', bn: 'CSV/PDF এক্সপোর্ট' }, description: { en: 'Export reports to CSV or PDF', bn: 'রিপোর্ট CSV বা PDF-এ এক্সপোর্ট' } },
       { key: 'reports.audit_logs', label: { en: 'View System Audit Logs', bn: 'সিস্টেম অডিট লগ দেখুন' }, description: { en: 'View security audit trail', bn: 'নিরাপত্তা অডিট ট্রেইল দেখুন' } },
+      { key: 'reports.view_own_statement', label: { en: 'View Own Statement', bn: 'নিজের স্টেটমেন্ট দেখুন' }, description: { en: 'View and download own transaction statement', bn: 'নিজের লেনদেনের স্টেটমেন্ট দেখুন ও ডাউনলোড করুন' } },
     ],
   },
   {

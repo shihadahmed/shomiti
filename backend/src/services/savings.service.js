@@ -671,6 +671,63 @@ export async function listAccounts(memberId) {
   return SavingsAccount.find({ member: memberId }).sort({ createdAt: 1 });
 }
 
+/** Member savings dashboard: accounts, balances, dues summary, recent transactions */
+export async function getMemberSavingsDashboard(memberId) {
+  assertObjectId(memberId, 'member');
+
+  const [accounts, duesSummary, recentTransactions, schemes] = await Promise.all([
+    SavingsAccount.find({ member: memberId, status: 'active' }).sort({ createdAt: 1 }),
+    SavingsDue.aggregate([
+      { $match: { member: new mongoose.Types.ObjectId(memberId), status: { $in: [SAVINGS_DUE_STATUS.DUE, SAVINGS_DUE_STATUS.OVERDUE] } } },
+      { $group: { _id: '$status', count: { $sum: 1 }, total: { $sum: '$totalDuePaisa' } } },
+    ]),
+    SavingsTransaction.find({ member: memberId }).sort({ createdAt: -1 }).limit(5).populate('savingsDue', 'dueNo period').populate('account', 'accountNo'),
+    SavingsScheme.find({ members: memberId, status: 'active' }).select('name type interestRate startDate').populate('members', 'code'),
+  ]);
+
+  const totalBalance = accounts.reduce((sum, a) => sum + (a.balancePaisa || 0), 0);
+  const dueCount = duesSummary.find(d => d._id === SAVINGS_DUE_STATUS.DUE)?.count || 0;
+  const overdueCount = duesSummary.find(d => d._id === SAVINGS_DUE_STATUS.OVERDUE)?.count || 0;
+  const dueTotal = (duesSummary.find(d => d._id === SAVINGS_DUE_STATUS.DUE)?.total || 0) + (duesSummary.find(d => d._id === SAVINGS_DUE_STATUS.OVERDUE)?.total || 0);
+
+  return {
+    accounts: accounts.map(a => ({
+      _id: a._id,
+      accountNo: a.accountNo,
+      type: a.type,
+      balancePaisa: a.balancePaisa,
+      interestRate: a.interestRate,
+      status: a.status,
+    })),
+    totalBalancePaisa: totalBalance,
+    duesSummary: {
+      dueCount,
+      overdueCount,
+      totalDueCount: dueCount + overdueCount,
+      totalDuePaisa: dueTotal,
+    },
+    recentTransactions: recentTransactions.map(t => ({
+      _id: t._id,
+      txnNo: t.txnNo,
+      type: t.type,
+      amountPaisa: t.amountPaisa,
+      method: t.method,
+      status: t.status,
+      createdAt: t.createdAt,
+      receiptNo: t.receiptNo,
+      savingsDue: t.savingsDue,
+      account: t.account,
+    })),
+    enrolledSchemes: schemes.map(s => ({
+      _id: s._id,
+      name: s.name,
+      type: s.type,
+      interestRate: s.interestRate,
+      startDate: s.startDate,
+    })),
+  };
+}
+
 /** Helper for formatting in service */
 function formatMoney(paisa) {
   return (Math.round(paisa || 0) / 100).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

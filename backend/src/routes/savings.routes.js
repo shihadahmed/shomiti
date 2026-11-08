@@ -19,8 +19,10 @@ const router = Router();
 router.use(authenticate);
 
 // Member self-service (linked member portal accounts)
+router.get('/my', savingsController.mySavingsDashboard);
 router.get('/my/dues', savingsController.myDues);
 router.get('/my/transactions', savingsController.myTransactions);
+router.get('/my/schemes', savingsController.mySchemes);
 
 // Staff endpoints below
 router.use(requireStaff);

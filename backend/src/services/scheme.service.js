@@ -184,6 +184,35 @@ export async function getEnrollment(id) {
   return enrollment;
 }
 
+/** Get member's active scheme enrollments with scheme details */
+export async function getMemberSchemes(memberId) {
+  assertObjectId(memberId, 'member');
+  const enrollments = await SchemeEnrollment.find({
+    member: memberId,
+    status: 'active',
+  })
+    .populate('scheme')
+    .sort({ createdAt: -1 });
+
+  return enrollments.map(e => ({
+    _id: e._id,
+    enrollmentNo: e.enrollmentNo,
+    startDate: e.startDate,
+    nextDueDate: e.nextDueDate,
+    maturityDate: e.maturityDate,
+    status: e.status,
+    scheme: e.scheme ? {
+      _id: e.scheme._id,
+      name: e.scheme.name,
+      nameBn: e.scheme.nameBn,
+      savingsType: e.scheme.savingsType,
+      principalPaisa: e.scheme.principalPaisa,
+      interestRate: e.scheme.interestRate,
+      lateFeePercent: e.scheme.lateFeePercent,
+    } : null,
+  }));
+}
+
 export default {
   createScheme,
   listSchemes,
@@ -192,4 +221,5 @@ export default {
   listEnrollments,
   getEnrollment,
   advanceDate,
+  getMemberSchemes,
 };

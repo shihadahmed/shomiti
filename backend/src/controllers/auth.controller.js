@@ -21,7 +21,10 @@ export const logout = asyncHandler(async (req, res) => {
 
 export const me = asyncHandler(async (req, res) => {
   // req.user already has photo attached by authenticate middleware
-  const user = req.user.toJSON ? req.user.toJSON() : req.user;
+  const user = req.user.toJSON ? req.user.toJSON() : { ...req.user };
+  // Permissions are derived from the Role document by the authenticate middleware.
+  // They are not schema paths, so they must be copied onto the serialisable object.
+  user.permissions = Array.isArray(req.user.permissions) ? req.user.permissions : [];
   // Ensure photo is included (middleware attaches it as a property on the document)
   if (req.user.photo) user.photo = req.user.photo;
   res.json({ success: true, data: { user } });
