@@ -286,9 +286,10 @@ export default function DuesPage() {
                           )}
                           {due.payment && (
                             <Link
-                              href={`/approvals/slips/${due.payment._id}`}
+                              href="/approvals"
                               className="btn-icon h-8 w-8 text-brand-500 hover:bg-brand-100"
                               aria-label={tr('approvals.verify')}
+                              title={tr('approvals.verify')}
                             >
                               <Icon name="shield" className="h-4 w-4" />
                             </Link>
