@@ -174,6 +174,15 @@ export default function NoticeDetailPage() {
                   {document.member.code} - {document.member.fullName}
                 </span>
               )}
+              {/* Mentioned Member Badge - shown when visibility is 'specific' */}
+              {document.mentionedMember && (
+                <span className="flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  <Icon name="userCheck" className="h-3.5 w-3.5 text-amber-600" />
+                  <span className="font-medium">
+                    {tr('documents.forMember') || 'For'}: {document.mentionedMember.code} — {document.mentionedMember.fullName}
+                  </span>
+                </span>
+              )}
             </div>
 
             {/* Full Description/Body */}
