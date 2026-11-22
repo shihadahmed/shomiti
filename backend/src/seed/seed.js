@@ -9,40 +9,15 @@ import { hashPassword } from '../utils/password.js';
 import { nextMemberCode } from '../utils/sequence.js';
 import { ROLES, BUSINESS_RULES, SAVINGS_TYPES, MEMBER_STATUS } from '../config/constants.js';
 
-const DEFAULT_USERS = [
-  {
-    name: 'Super Administrator',
-    email: process.env.SEED_ADMIN_EMAIL || 'admin@shomiti.local',
-    phone: process.env.SEED_ADMIN_PHONE || '01700000000',
-    nid: process.env.SEED_ADMIN_NID || '9000000001',
-    password: process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',
-    role: ROLES.SUPER_ADMIN,
-  },
-  {
-    name: 'Treasurer',
-    email: process.env.SEED_TREASURER_EMAIL || 'treasurer@shomiti.local',
-    phone: process.env.SEED_TREASURER_PHONE || '01700000001',
-    nid: process.env.SEED_TREASURER_NID || '9000000002',
-    password: process.env.SEED_TREASURER_PASSWORD || 'Treasurer@12345',
-    role: ROLES.TREASURER,
-  },
-  {
-    name: 'General Secretary',
-    email: process.env.SEED_GS_EMAIL || 'gs@shomiti.local',
-    phone: process.env.SEED_GS_PHONE || '01700000002',
-    nid: process.env.SEED_GS_NID || '9000000003',
-    password: process.env.SEED_GS_PASSWORD || 'GS@12345',
-    role: ROLES.GENERAL_SECRETARY,
-  },
-  {
-    name: 'President',
-    email: process.env.SEED_PRESIDENT_EMAIL || 'president@shomiti.local',
-    phone: process.env.SEED_PRESIDENT_PHONE || '01700000003',
-    nid: process.env.SEED_PRESIDENT_NID || '9000000004',
-    password: process.env.SEED_PRESIDENT_PASSWORD || 'President@12345',
-    role: ROLES.PRESIDENT,
-  },
-];
+/** Super Admin bootstrap user (from env vars). */
+const SUPER_ADMIN_USER = {
+  name: process.env.SEED_ADMIN_NAME || 'Super Administrator',
+  email: process.env.SEED_ADMIN_EMAIL,
+  phone: process.env.SEED_ADMIN_PHONE,
+  nid: process.env.SEED_ADMIN_NID,
+  password: process.env.SEED_ADMIN_PASSWORD,
+  role: ROLES.SUPER_ADMIN,
+};
 
 /** Allocates a member code, retrying if a manually inserted row already used it. */
 async function allocateMemberCode() {
@@ -137,9 +112,11 @@ async function seed() {
   await ensureChartOfAccounts();
   console.info('[seed] chart of accounts ready');
 
-  // Every staff login is backed by a Member profile. This keeps role and
-  // portal-access management inside the Members module.
-  for (const userData of DEFAULT_USERS) {
+  // Create Super Admin bootstrap user (if env vars are provided).
+  // Other staff roles (Treasurer, GS, President) are assigned later
+  // by Super Admin via the Members module UI/API.
+  const userData = SUPER_ADMIN_USER;
+  if (userData.email && userData.password && userData.phone && userData.nid) {
     let user = await User.findOne({ email: userData.email });
     if (!user) {
       user = await User.create({
@@ -158,6 +135,9 @@ async function seed() {
     }
 
     await ensureMemberForUser(user, userData);
+  } else {
+    console.warn('[seed] Super Admin env vars not set (SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, SEED_ADMIN_PHONE, SEED_ADMIN_NID). Skipping bootstrap user creation.');
+    console.warn('[seed] Create the first Super Admin manually via the Members module after signup.');
   }
 
   for (const scheme of FIXED_SCHEMES) {
@@ -176,11 +156,13 @@ async function seed() {
     }
   }
 
-  console.info('\n[seed] done. Sign in with:');
-  for (const userData of DEFAULT_USERS) {
-    console.info(`  ${userData.role.padEnd(20)} : ${userData.email} / ${userData.password}`);
+  console.info('\n[seed] done.');
+  if (userData.email && userData.password) {
+    console.info(`  Super Admin: ${userData.email} / ${userData.password}`);
+    console.info('  Change password immediately after first sign-in.\n');
+  } else {
+    console.info('  No bootstrap user created. Set SEED_ADMIN_* env vars to auto-create Super Admin.\n');
   }
-  console.info('  Change all passwords immediately after first sign-in.\n');
 
   await mongoose.disconnect();
   await disconnectDB();
