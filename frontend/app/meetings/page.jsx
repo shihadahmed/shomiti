@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
-import { useApi, apiGet, apiPost, apiDelete } from '@/lib/useApi';
+import { useApi, apiGet, apiPost, apiDelete, describeApiError } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
 import SearchParamSync from '@/components/layout/SearchParamSync';
 import { toast } from 'react-toastify';
@@ -19,8 +19,8 @@ const MEETING_CATEGORIES = [
 ];
 
 const VISIBILITY_OPTIONS = [
-  { value: 'staff', label: 'Staff Only' },
-  { value: 'member', label: 'Member Visible' },
+  { value: 'all', label: 'All Members' },
+  { value: 'specific', label: 'Specific Member' },
 ];
 
 const CATEGORY_ACCENTS = {
@@ -161,7 +161,8 @@ export default function MeetingsPage() {
       title: '',
       category: 'notice',
       description: '',
-      visibility: 'staff',
+      visibility: 'all',
+      mentionedMemberId: '',
       file: null,
     });
     setFormErrors({});
@@ -174,7 +175,8 @@ export default function MeetingsPage() {
       title: '',
       category: 'notice',
       description: '',
-      visibility: 'staff',
+      visibility: 'all',
+      mentionedMemberId: '',
       file: null,
     });
     setFormErrors({});
@@ -198,12 +200,18 @@ export default function MeetingsPage() {
     setFormErrors({});
 
     if (!form.file) {
-      setFormErrors({ file: tr('validation.required') });
+      setFormErrors({ file: 'Please select a file to upload.' });
       return;
     }
 
-    if (!form.title) {
-      setFormErrors({ title: tr('validation.required') });
+    if (!form.title || !form.title.trim()) {
+      setFormErrors({ title: 'Title is required.' });
+      return;
+    }
+
+    // Validate mentionedMemberId when visibility is 'specific'
+    if (form.visibility === 'specific' && !form.mentionedMemberId) {
+      setFormErrors({ mentionedMemberId: 'Please select a member for Specific Member visibility.' });
       return;
     }
 
@@ -215,16 +223,19 @@ export default function MeetingsPage() {
       formData.append('category', form.category);
       formData.append('description', form.description);
       formData.append('visibility', form.visibility);
+      if (form.visibility === 'specific' && form.mentionedMemberId) {
+        formData.append('mentionedMemberId', form.mentionedMemberId);
+      }
 
       await apiPost('/documents', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      toast.success(tr('toast.created'));
+      toast.success('Document uploaded successfully.');
       closeModal();
       reload();
     } catch (requestError) {
-      setFormErrors({ submit: requestError?.message || tr('error.generic') });
+      setFormErrors({ submit: describeApiError(requestError) });
     } finally {
       setUploading(false);
     }
@@ -405,6 +416,16 @@ export default function MeetingsPage() {
                         <span className="font-medium text-brand-600">{fullDate}</span>
                       </span>
 
+                      {/* Mentioned Member Badge - shown when visibility is 'specific' */}
+                      {doc.mentionedMember && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                          <Icon name="userCheck" className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                          <span className="font-medium">
+                            {tr('documents.forMember') || 'For'}: {doc.mentionedMember.code} — {doc.mentionedMember.fullName}
+                          </span>
+                        </span>
+                      )}
+
                       {/* Attachment indicator */}
                       {hasAttachment && (
                         <span className="flex items-center gap-1.5 text-brand-500 bg-brand-50 px-2.5 py-0.5 rounded-full">
@@ -459,6 +480,58 @@ export default function MeetingsPage() {
 
 function UploadModal({ open, onClose, form, errors, onChange, onFileChange, uploading, onSubmit }) {
   const { tr } = useLang();
+  const [memberOptions, setMemberOptions] = useState([]);
+  const [memberSearchLoading, setMemberSearchLoading] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+
+  // Fetch member options for the searchable selector
+  const fetchMemberOptions = useCallback(async (query = '') => {
+    setMemberSearchLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (query) params.set('search', query);
+      params.set('limit', '20');
+      
+      const response = await fetch(`/api/members/options?${params.toString()}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMemberOptions(data.data?.items || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch member options:', err);
+    } finally {
+      setMemberSearchLoading(false);
+    }
+  }, []);
+
+  // Load initial member options when modal opens
+  useEffect(() => {
+    if (open) {
+      fetchMemberOptions();
+    }
+  }, [open, fetchMemberOptions]);
+
+  const handleMemberSearch = (query) => {
+    setMemberSearchQuery(query);
+    // Debounce the search
+    clearTimeout(window.memberSearchTimeout);
+    window.memberSearchTimeout = setTimeout(() => {
+      fetchMemberOptions(query);
+    }, 300);
+  };
+
+  const handleVisibilityChange = (value) => {
+    onChange({ ...form, visibility: value, mentionedMemberId: value === 'specific' ? form.mentionedMemberId : '' });
+    if (value === 'specific' && memberOptions.length === 0) {
+      fetchMemberOptions();
+    }
+  };
+
+  const handleMemberSelect = (memberId) => {
+    onChange({ ...form, mentionedMemberId: memberId });
+  };
 
   if (!open) return null;
 
@@ -488,10 +561,68 @@ function UploadModal({ open, onClose, form, errors, onChange, onFileChange, uplo
             <Select
               label={tr('documents.visibility') || 'Visibility'}
               value={form.visibility}
-              onChange={(e) => onChange({ ...form, visibility: e.target.value })}
+              onChange={(e) => handleVisibilityChange(e.target.value)}
               required
               options={VISIBILITY_OPTIONS}
             />
+            
+            {/* Member Selector - Only shown when visibility is 'specific' */}
+            {form.visibility === 'specific' && (
+              <div className="sm:col-span-2">
+                <label className="label">
+                  {tr('documents.mentionedMember') || 'Mentioned Member'} <span className="text-rose-600">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder={tr('documents.searchMemberPlaceholder') || 'Search member by code, name, or phone...'}
+                    value={memberSearchQuery}
+                    onChange={(e) => handleMemberSearch(e.target.value)}
+                    autoComplete="off"
+                    required
+                    aria-describedby="member-hint"
+                  />
+                  {memberSearchLoading && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <svg className="animate-spin h-5 w-5 text-brand-500" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto rounded-xl border border-brand-200 bg-white shadow-lg hidden" 
+                       id="member-dropdown"
+                       role="listbox">
+                    {memberOptions.map(member => (
+                      <button
+                        key={member._id}
+                        type="button"
+                        className={`w-full px-3 py-2 text-left hover:bg-brand-50 transition-colors ${
+                          form.mentionedMemberId === member._id ? 'bg-brand-50 text-brand-700' : ''
+                        }`}
+                        onClick={() => handleMemberSelect(member._id)}
+                        role="option"
+                        aria-selected={form.mentionedMemberId === member._id}
+                      >
+                        <div className="font-medium text-brand-900">{member.code} — {member.fullName}</div>
+                        {member.phone && <div className="text-xs text-brand-500">{member.phone}</div>}
+                      </button>
+                    ))}
+                    {memberOptions.length === 0 && !memberSearchLoading && (
+                      <div className="px-3 py-2 text-center text-sm text-brand-500">
+                        {tr('documents.noMembersFound') || 'No members found'}
+                      </div>
+                    )}
+                  </div>
+                  {errors.mentionedMemberId && <p className="field-error">{errors.mentionedMemberId}</p>}
+                  <p id="member-hint" className="hint">
+                    {tr('documents.mentionedMemberHint') || 'Select the member this notice is issued for. They will receive a personalized notification.'}
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <div className="sm:col-span-2">
               <label className="label">{tr('documents.file') || 'File'}</label>
               <div className="relative">
@@ -512,7 +643,7 @@ function UploadModal({ open, onClose, form, errors, onChange, onFileChange, uplo
               onChange={(e) => onChange({ ...form, description: e.target.value })}
               className="sm:col-span-2"
               multiline
-              rows={3}
+              rows={4}
             />
           </div>
         </FormSection>
