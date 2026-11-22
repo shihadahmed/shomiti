@@ -41,6 +41,9 @@ export async function createDocument({ file, body }, actor, req) {
     assertObjectId(body.mentionedMemberId, 'member');
     mentionedMember = await Member.findById(body.mentionedMemberId);
     if (!mentionedMember) throw ApiError.notFound('Mentioned member not found.', 'MEMBER_NOT_FOUND');
+  } else if (body.visibility === 'all' && body.mentionedMemberId) {
+    // Ignore mentionedMemberId when visibility is 'all' (security: prevent hidden targeting)
+    // Do not throw, just ignore silently
   }
 
   // Upload to Cloudinary
