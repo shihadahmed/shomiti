@@ -33,6 +33,14 @@
   }
 }
 
+/* Ensure SVG icons inside group-hover elements inherit the text color */
+.group:hover > svg,
+.group:hover .group-hover\:text-white svg,
+.group:hover [stroke="currentColor"] {
+  color: white !important;
+  stroke: white !important;
+}
+
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition
