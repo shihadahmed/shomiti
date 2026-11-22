@@ -25,7 +25,7 @@ const documentSchema = new mongoose.Schema(
       width: Number,
       height: Number,
     },
-    visibility: { type: String, enum: ['all', 'specific'], default: 'all' },
+    visibility: { type: String, enum: ['all', 'specific'], default: 'all' }, // 'all' = All Members, 'specific' = Specific Member (requires mentionedMember)
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true },
