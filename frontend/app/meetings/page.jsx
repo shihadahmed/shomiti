@@ -594,6 +594,7 @@ function UploadModal({ open, onClose, form, errors, onChange, onFileChange, uplo
                     placeholder={tr('documents.searchMemberPlaceholder') || 'Search member by code, name, or phone...'}
                     value={memberSearchQuery}
                     onChange={(e) => handleMemberSearch(e.target.value)}
+                    onFocus={() => setDropdownOpen(true)}
                     autoComplete="off"
                     required
                     aria-describedby="member-hint"
