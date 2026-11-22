@@ -1,12 +1,14 @@
 import mongoose from 'mongoose';
 import Document from '../models/Document.js';
 import Member from '../models/Member.js';
+import User from '../models/User.js';
 import config from '../config/env.js';
 import ApiError from '../utils/ApiError.js';
 import { getPagination, paginationMeta } from '../utils/pagination.js';
 import { writeAudit } from '../utils/audit.js';
 import cloudinary from '../config/cloudinary.js';
 import { uploadToCloudinary, MAX_FILE_SIZE } from '../middleware/upload.js';
+import { createNotification } from './notification.service.js';
 
 function assertObjectId(id, label) {
   if (!mongoose.isValidObjectId(id)) {
@@ -23,10 +25,22 @@ export async function createDocument({ file, body }, actor, req) {
     throw ApiError.badRequest('File size must not exceed 5MB.', 'FILE_TOO_LARGE');
   }
 
+  // Validate memberId if provided (for folder organization)
   if (body.memberId) {
     assertObjectId(body.memberId, 'member');
     const member = await Member.findById(body.memberId);
     if (!member) throw ApiError.notFound('Member not found.', 'MEMBER_NOT_FOUND');
+  }
+
+  // Validate mentionedMemberId when visibility is 'specific'
+  let mentionedMember = null;
+  if (body.visibility === 'specific') {
+    if (!body.mentionedMemberId) {
+      throw ApiError.badRequest('Member must be specified when visibility is "Specific Member".', 'MEMBER_REQUIRED');
+    }
+    assertObjectId(body.mentionedMemberId, 'member');
+    mentionedMember = await Member.findById(body.mentionedMemberId);
+    if (!mentionedMember) throw ApiError.notFound('Mentioned member not found.', 'MEMBER_NOT_FOUND');
   }
 
   // Upload to Cloudinary
@@ -42,6 +56,7 @@ export async function createDocument({ file, body }, actor, req) {
     description: body.description,
     category: body.category || 'other',
     member: body.memberId || undefined,
+    mentionedMember: mentionedMember?._id || undefined,
     file: {
       url: uploadResult.secure_url,
       publicId: uploadResult.public_id,
@@ -53,7 +68,7 @@ export async function createDocument({ file, body }, actor, req) {
       width: uploadResult.width,
       height: uploadResult.height,
     },
-    visibility: body.visibility || 'staff',
+    visibility: body.visibility || 'all',
     uploadedBy: actor._id,
   });
 
@@ -66,17 +81,72 @@ export async function createDocument({ file, body }, actor, req) {
     req,
   });
 
+  // Send targeted notifications after document creation
+  await sendDocumentNotifications(doc, actor, req);
+
   return doc;
+}
+
+/**
+ * Send targeted notifications based on document visibility
+ * Case A - All Members: Notify all active users EXCEPT the sender
+ * Case B - Specific Member: Notify ONLY the mentioned member's linked user (if not sender)
+ * Never send self-notification
+ */
+async function sendDocumentNotifications(doc, actor, req) {
+  const notificationLink = `/meetings/${doc._id}`;
+  const notificationTitle = doc.category === 'notice' ? 'New Notice Published' : 'New Document Uploaded';
+  const notificationMessage = `"${doc.title}" has been published.`;
+
+  if (doc.visibility === 'all') {
+    // Case A: All Members - notify all active users except sender
+    const users = await User.find({ _id: { $ne: actor._id }, isActive: true }).select('_id').lean();
+    
+    const notifications = users.map(user => ({
+      user: user._id,
+      type: 'system',
+      title: notificationTitle,
+      message: notificationMessage,
+      link: notificationLink,
+      metadata: { documentId: doc._id, category: doc.category },
+    }));
+
+    if (notifications.length > 0) {
+      await mongoose.model('Notification').insertMany(notifications);
+    }
+  } else if (doc.visibility === 'specific' && doc.mentionedMember) {
+    // Case B: Specific Member - notify only the mentioned member's linked user
+    // Find the user linked to the mentioned member
+    const mentionedUser = await User.findOne({ memberId: doc.mentionedMember, isActive: true }).select('_id').lean();
+    
+    if (mentionedUser && !mentionedUser._id.equals(actor._id)) {
+      // Only send if mentioned user exists and is not the sender
+      await createNotification({
+        userId: mentionedUser._id,
+        type: 'system',
+        title: notificationTitle,
+        message: `A notice has been issued for you (${doc.mentionedMember?.code || 'Member'}): "${doc.title}"`,
+        link: notificationLink,
+        metadata: { documentId: doc._id, category: doc.category, mentionedMemberId: doc.mentionedMember?.toString() },
+        actor: actor._id,
+        req,
+      });
+    }
+  }
 }
 
 export async function listDocuments(query = {}) {
   const { page, limit, skip } = getPagination(query);
   const filter = {};
   if (query.category) filter.category = query.category;
-  if (query.visibility) filter.visibility = query.visibility;
+  // Note: visibility filter removed - public notice board shows all documents to authenticated users
   if (query.memberId) {
     assertObjectId(query.memberId, 'member');
     filter.member = query.memberId;
+  }
+  if (query.mentionedMemberId) {
+    assertObjectId(query.mentionedMemberId, 'member');
+    filter.mentionedMember = query.mentionedMemberId;
   }
   if (query.search?.trim()) {
     filter.title = new RegExp(String(query.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
@@ -88,6 +158,7 @@ export async function listDocuments(query = {}) {
       .skip(skip)
       .limit(limit)
       .populate('member', 'code fullName')
+      .populate('mentionedMember', 'code fullName')
       .populate('uploadedBy', 'name'),
     Document.countDocuments(filter),
   ]);
@@ -115,19 +186,12 @@ export async function getDocumentById(id, actor, req) {
   assertObjectId(id, 'document');
   const doc = await Document.findById(id)
     .populate('member', 'code fullName')
+    .populate('mentionedMember', 'code fullName')
     .populate('uploadedBy', 'name');
   if (!doc) throw ApiError.notFound('Document not found.', 'DOCUMENT_NOT_FOUND');
 
-  // Check visibility permissions
-  if (doc.visibility === 'member' && doc.member) {
-    // Member-visible documents: allow if user is the member or staff
-    if (actor.role === 'member' && (!actor.memberId || !actor.memberId.equals(doc.member._id))) {
-      throw ApiError.forbidden('You do not have permission to view this document.', 'FORBIDDEN');
-    }
-  } else if (doc.visibility === 'staff' && actor.role === 'member') {
-    // Staff-only documents: members cannot view
-    throw ApiError.forbidden('You do not have permission to view this document.', 'FORBIDDEN');
-  }
+  // Public notice board - all authenticated users can view all documents
+  // No visibility restrictions applied
 
   return doc;
 }
