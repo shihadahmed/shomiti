@@ -37,6 +37,7 @@ router.post(
   documentController.upload,
 );
 router.get('/:id/file', documentIdParam, validate, documentController.download);
+router.get('/:id/preview', documentIdParam, validate, documentController.preview);
 router.delete(
   '/:id',
   requireRoles(ROLES.SUPER_ADMIN, ROLES.GENERAL_SECRETARY),
