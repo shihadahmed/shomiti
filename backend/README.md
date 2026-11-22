@@ -90,8 +90,8 @@ Full configuration reference:
 | `SEED_ADMIN_NAME` | `System Administrator` | Seeded super admin name |
 | `SEED_ADMIN_EMAIL` | `admin@shomiti.local` | Seeded super admin email |
 | `SEED_ADMIN_PHONE` | `01700000000` | Seeded super admin phone |
+| `SEED_ADMIN_NID` | — | Seeded super admin NID (required) |
 | `SEED_ADMIN_PASSWORD` | `Admin@12345` | Seeded super admin password |
-| `SEED_TREASURER_*`, `SEED_GS_*`, `SEED_PRESIDENT_*` | see `.env` template | Seeded staff accounts |
 
 ## Scripts
 
@@ -110,8 +110,10 @@ Full configuration reference:
 
 1. Connects to MongoDB.
 2. Initializes default system roles (if the role collection is empty).
-3. Seeds default users (only if missing), a linked Member profile for each staff login, fixed savings schemes and the chart of accounts.
+3. Seeds the Super Admin bootstrap user (if `SEED_ADMIN_*` env vars are set), a linked Member profile, fixed savings schemes and the chart of accounts.
 4. Starts the HTTP server.
+
+**Other staff roles (Treasurer, General Secretary, President) are not pre-seeded.** They are assigned later by the Super Admin via the Members module UI/API (`PATCH /api/members/:id/role`).
 
 Seeding is idempotent: existing users are never overwritten. Deleting a user and restarting the backend recreates the default account with the password from `.env`.
 
