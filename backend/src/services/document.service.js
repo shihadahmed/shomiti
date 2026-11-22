@@ -111,6 +111,27 @@ export async function getDocumentFile(id) {
   };
 }
 
+export async function getDocumentById(id, actor, req) {
+  assertObjectId(id, 'document');
+  const doc = await Document.findById(id)
+    .populate('member', 'code fullName')
+    .populate('uploadedBy', 'name');
+  if (!doc) throw ApiError.notFound('Document not found.', 'DOCUMENT_NOT_FOUND');
+
+  // Check visibility permissions
+  if (doc.visibility === 'member' && doc.member) {
+    // Member-visible documents: allow if user is the member or staff
+    if (actor.role === 'member' && (!actor.memberId || !actor.memberId.equals(doc.member._id))) {
+      throw ApiError.forbidden('You do not have permission to view this document.', 'FORBIDDEN');
+    }
+  } else if (doc.visibility === 'staff' && actor.role === 'member') {
+    // Staff-only documents: members cannot view
+    throw ApiError.forbidden('You do not have permission to view this document.', 'FORBIDDEN');
+  }
+
+  return doc;
+}
+
 export async function deleteDocument(id, actor, req) {
   assertObjectId(id, 'document');
   const doc = await Document.findById(id);
