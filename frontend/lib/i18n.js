@@ -1991,6 +1991,12 @@ const bn = {
   'documents.myEmpty': 'এখনও কোনো নথি শেয়ার করা হয়নি',
   'documents.myEmptyDesc': 'আপনার সাথে শেয়ার করা নথিপত্র এখানে দেখাবে।',
   'documents.download': 'ডাউনলোড',
+  'documents.forMember': 'জন্য',
+  'documents.searchMemberPlaceholder': 'কোড, নাম বা ফোন দিয়ে সদস্য খুঁজুন...',
+  'documents.noMembersFound': 'কোনো সদস্য পাওয়া যায়নি',
+  'documents.mentionedMember': 'উল্লিখিত সদস্য',
+  'documents.mentionedMemberHint': 'এই নোটিশ যেটি জন্য জারি করা হয়েছে সেই সদস্য নির্বাচন করুন। তাকে ব্যক্তিগত বিজ্ঞপ্তি যাবে।',
+  'documents.memberRequired': 'নির্দিষ্ট সদস্য দৃশ্যমানতার জন্য একজন সদস্য নির্বাচন করুন।',
 
   'ledger.title': 'খতিয়ান ও হিসাব',
   'ledger.subtitle': 'দ্বৈত-এন্ট্রি জার্নাল ও খতিয়ান ব্যালান্স',
