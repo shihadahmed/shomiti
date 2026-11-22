@@ -186,6 +186,7 @@ export const Input = forwardRef(
   }
 );
 Input.displayName = 'Input';
+Input.displayName = 'Input';
 
 export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }) {
   if (!isOpen) return null;
