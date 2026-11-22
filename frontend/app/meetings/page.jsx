@@ -209,6 +209,11 @@ export default function MeetingsPage() {
       return;
     }
 
+    if (!form.category) {
+      setFormErrors({ category: 'Category is required.' });
+      return;
+    }
+
     // Validate mentionedMemberId when visibility is 'specific'
     if (form.visibility === 'specific' && !form.mentionedMemberId) {
       setFormErrors({ mentionedMemberId: 'Please select a member for Specific Member visibility.' });
