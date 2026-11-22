@@ -58,6 +58,7 @@ import {
   Copy,
   UserCog,
   ExternalLink,
+  HelpCircle,
 } from 'lucide-react';
 
 const ICONS = {
@@ -74,7 +75,7 @@ const ICONS = {
   lock: Lock, user: User, creditCard: CreditCard, award: Star,
   bell: Bell, settings: Settings, info: Info, id: Contact, briefcase: Briefcase,
   mail: Mail, key: KeyRound, copy: Copy, pencilLine: PencilLine,
-  userCog: UserCog, externalLink: ExternalLink,
+  userCog: UserCog, externalLink: ExternalLink, helpCircle: HelpCircle,
 };
 
 const BOLD_ICONS = new Set([
