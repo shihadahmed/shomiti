@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/auth';
 import { useLang } from '@/lib/useLang';
 import { apiGet } from '@/lib/useApi';
 import AppShell from '@/components/layout/AppShell';
+import AttachmentPreview from '@/components/documents/AttachmentPreview';
 import { Icon, Button, Badge, LoadingSpinner, formatDate } from '@/components/ui/common';
 
 const CATEGORY_ACCENTS = {
@@ -28,14 +29,6 @@ function getAccent(category) {
   return CATEGORY_ACCENTS[category] || CATEGORY_ACCENTS.default;
 }
 
-function isImage(mimeType) {
-  return mimeType?.startsWith('image/');
-}
-
-function isPdf(mimeType) {
-  return mimeType === 'application/pdf';
-}
-
 export default function NoticeDetailPage() {
   const { tr, lang } = useLang();
   const user = useAuthStore((state) => state.user);
@@ -54,8 +47,9 @@ export default function NoticeDetailPage() {
     try {
       setLoading(true);
       const res = await apiGet(`/documents/${id}`);
-      if (res.data?.success && res.data.data?.document) {
-        setDocument(res.data.data.document);
+      const doc = res?.document ?? res;
+      if (doc?._id) {
+        setDocument(doc);
       } else {
         throw new Error('Document not found');
       }
@@ -69,9 +63,9 @@ export default function NoticeDetailPage() {
   const fetchRecentNotices = useCallback(async () => {
     try {
       const res = await apiGet('/documents', { limit: 5, category: '', search: '' });
-      if (res.data?.success && res.data.data?.items) {
+      if (Array.isArray(res?.items)) {
         // Filter out current document
-        const recent = res.data.data.items.filter(doc => doc._id !== id);
+        const recent = res.items.filter(doc => doc._id !== id);
         setRecentNotices(recent);
       }
     } catch (err) {
@@ -97,12 +91,8 @@ export default function NoticeDetailPage() {
     }
   }, [isAuthenticated, checking, fetchDocument, fetchRecentNotices]);
 
-  // Redirect to login only after mount + hydration complete
-  useEffect(() => {
-    if (mounted && !checking && !isAuthenticated) {
-      window.location.href = '/login';
-    }
-  }, [mounted, checking, isAuthenticated]);
+  // Unauthenticated visitors are redirected by AppShell after it restores the
+  // session from the auth cookie, so the detail page must not redirect early.
 
   if (!mounted || checking || loading) {
     return (
@@ -127,9 +117,6 @@ export default function NoticeDetailPage() {
 
   const fullDate = formatDate(document.createdAt, { time: false });
   const hasAttachment = document.file?.url;
-  const attachmentIsImage = hasAttachment && isImage(document.file.mimeType);
-  const attachmentIsPdf = hasAttachment && isPdf(document.file.mimeType);
-  const attachmentFileName = document.file?.originalName || 'attachment';
 
   return (
     <AppShell>
@@ -196,72 +183,14 @@ export default function NoticeDetailPage() {
               </div>
             )}
 
-            {/* Attachment Preview */}
+            {/* Attachment preview + actions */}
             {hasAttachment && (
-              <div className="mb-6 rounded-xl border border-brand-200 bg-brand-50/50 overflow-hidden">
-                <div className="px-4 py-3 border-b border-brand-200 bg-brand-100/50">
-                  <h3 className="font-semibold text-brand-900 flex items-center gap-2">
-                    <Icon name={attachmentIsImage ? 'image' : 'file'} className="h-5 w-5" />
-                    {tr('documents.attachmentPreview') || 'Attachment Preview'}
-                  </h3>
-                </div>
-                <div className="p-4">
-                  {attachmentIsImage ? (
-                    <div className="text-center">
-                      <img
-                        src={document.file.url}
-                        alt={document.title}
-                        className="max-w-full h-auto rounded-lg shadow-sm border border-brand-200 mx-auto"
-                        style={{ maxHeight: '500px' }}
-                      />
-                    </div>
-                  ) : attachmentIsPdf ? (
-                    <div className="text-center">
-                      <iframe
-                        src={`${document.file.url}#toolbar=0&navpanes=0&scrollbar=1`}
-                        title={document.title}
-                        className="w-full rounded-lg border border-brand-200 shadow-sm"
-                        style={{ height: '500px' }}
-                        sandbox="allow-scripts allow-same-origin"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center gap-4 py-8 text-center">
-                      <Icon name="file" className="h-16 w-16 text-brand-300" />
-                      <div>
-                        <p className="text-brand-600 font-medium">{attachmentFileName}</p>
-                        <p className="text-sm text-brand-400 mt-1">Preview not available for this file type</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Attachment Download Card */}
-            {hasAttachment && (
-              <div className="rounded-xl border-2 border-brand-200 bg-white p-5 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl ${accent.bg} ${accent.border}`}>
-                      <Icon name={attachmentIsPdf ? 'file' : attachmentIsImage ? 'image' : 'file'} className={`h-7 w-7 ${accent.border.replace('border-', 'text-').replace('500', '600')}`} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-brand-900">{tr('documents.attachment') || 'Attachment'}</p>
-                      <p className="text-sm text-brand-500">{attachmentFileName}</p>
-                    </div>
-                  </div>
-                  <a
-                    href={`/api/documents/${document._id}/file`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-primary whitespace-nowrap flex items-center gap-2"
-                  >
-                    <Icon name="download" className="h-4 w-4" />
-                    {tr('documents.download') || 'Download'}
-                  </a>
-                </div>
-              </div>
+              <AttachmentPreview
+                file={document.file}
+                documentId={document._id}
+                title={document.title}
+                accent={accent}
+              />
             )}
           </div>
         </div>
