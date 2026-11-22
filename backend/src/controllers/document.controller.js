@@ -23,6 +23,7 @@ export const myDocuments = asyncHandler(async (req, res) => {
 });
 
 export const upload = asyncHandler(async (req, res) => {
+  // Expected body: title, category, description, visibility ('all'|'specific'), mentionedMemberId (when visibility=specific)
   const document = await documentService.createDocument(
     { file: req.file, body: req.body },
     req.user,
