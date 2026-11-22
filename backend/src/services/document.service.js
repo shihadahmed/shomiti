@@ -149,6 +149,7 @@ export async function listDocuments(query = {}) {
     assertObjectId(query.memberId, 'member');
     filter.member = query.memberId;
   }
+  // Filter by mentionedMember for "my documents" view (targeted notices)
   if (query.mentionedMemberId) {
     assertObjectId(query.mentionedMemberId, 'member');
     filter.mentionedMember = query.mentionedMemberId;
