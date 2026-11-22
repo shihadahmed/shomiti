@@ -141,26 +141,39 @@ export const Button = forwardRef(
 Button.displayName = 'Button';
 
 export const Input = forwardRef(
-  ({ label, error, hint, className = '', id, icon, trailingIcon, ...props }, ref) => {
+  ({ label, error, hint, className = '', id, icon, trailingIcon, multiline, rows = 3, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+    const isMultiline = multiline === true;
     return (
       <div className="w-full">
         {label && <label htmlFor={inputId} className="label">{label}</label>}
         <div className="relative">
-          {icon && (
+          {icon && !isMultiline && (
             <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-brand-400">
               {icon}
             </div>
           )}
-          <input
-            ref={ref}
-            id={inputId}
-            className={`input ${error ? 'input-error' : ''} ${className} ${icon ? 'pl-11' : ''} ${trailingIcon ? 'pr-11' : ''}`}
-            aria-invalid={error ? 'true' : 'false'}
-            aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
-            {...props}
-          />
-          {trailingIcon && (
+          {isMultiline ? (
+            <textarea
+              ref={ref}
+              id={inputId}
+              className={`input ${error ? 'input-error' : ''} ${className} min-h-[110px] resize-none`}
+              rows={rows}
+              aria-invalid={error ? 'true' : 'false'}
+              aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
+              {...props}
+            />
+          ) : (
+            <input
+              ref={ref}
+              id={inputId}
+              className={`input ${error ? 'input-error' : ''} ${className} ${icon ? 'pl-11' : ''} ${trailingIcon ? 'pr-11' : ''}`}
+              aria-invalid={error ? 'true' : 'false'}
+              aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
+              {...props}
+            />
+          )}
+          {trailingIcon && !isMultiline && (
             <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-brand-400">
               {trailingIcon}
             </div>
