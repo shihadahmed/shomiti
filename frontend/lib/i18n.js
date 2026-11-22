@@ -662,6 +662,12 @@ const en = {
   'documents.myEmpty': 'No documents shared yet',
   'documents.myEmptyDesc': 'Documents shared with you will appear here.',
   'documents.download': 'Download',
+  'documents.forMember': 'For',
+  'documents.searchMemberPlaceholder': 'Search member by code, name, or phone...',
+  'documents.noMembersFound': 'No members found',
+  'documents.mentionedMember': 'Mentioned Member',
+  'documents.mentionedMemberHint': 'Select the member this notice is issued for. They will receive a personalized notification.',
+  'documents.memberRequired': 'Please select a member for Specific Member visibility.',
 
   'ledger.chartOfAccounts': 'Chart of accounts',
   'ledger.totalDebit': 'Total debit',
