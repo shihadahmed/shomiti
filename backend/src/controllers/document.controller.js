@@ -14,10 +14,10 @@ export const myDocuments = asyncHandler(async (req, res) => {
       data: { items: [], meta: { total: 0, page: 1, limit: 20, pages: 0 } },
     });
   }
+  // For members, show documents where they are the mentionedMember or the member folder owner
   const result = await documentService.listDocuments({
     ...req.query,
-    memberId: String(req.user.memberId),
-    visibility: 'member',
+    mentionedMemberId: String(req.user.memberId),
   });
   return res.json({ success: true, data: result });
 });
