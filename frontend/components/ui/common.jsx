@@ -59,6 +59,7 @@ import {
   UserCog,
   ExternalLink,
   HelpCircle,
+  Paperclip,
 } from 'lucide-react';
 
 const ICONS = {
@@ -76,6 +77,7 @@ const ICONS = {
   bell: Bell, settings: Settings, info: Info, id: Contact, briefcase: Briefcase,
   mail: Mail, key: KeyRound, copy: Copy, pencilLine: PencilLine,
   userCog: UserCog, externalLink: ExternalLink, helpCircle: HelpCircle,
+  paperclip: Paperclip,
 };
 
 const BOLD_ICONS = new Set([
@@ -83,13 +85,11 @@ const BOLD_ICONS = new Set([
   'chevronDown', 'arrowLeft', 'arrowRight', 'check',
 ]);
 
-export function Icon({ name, className = 'h-5 w-5', strokeWidth }) {
+export function Icon({ name, className = 'h-5 w-5', strokeWidth, ...props }) {
   const Component = ICONS[name] || CircleAlert;
   const weight = strokeWidth ?? (BOLD_ICONS.has(name) ? 2 : 1.8);
   return (
-    <span className={`inline-flex items-center justify-center ${className}`} aria-hidden="true">
-      <Component width="100%" height="100%" strokeWidth={weight} />
-    </span>
+    <Component className={`inline-flex items-center justify-center ${className}`} width="100%" height="100%" strokeWidth={weight} {...props} aria-hidden="true" />
   );
 }
 
