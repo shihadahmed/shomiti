@@ -17,6 +17,9 @@ router.use(authenticate);
 // Member portal: only documents explicitly shared with that member.
 router.get('/my', documentController.myDocuments);
 
+// Single document - accessible to both staff and members (visibility checked in service)
+router.get('/:id', documentController.getById);
+
 router.use(requireStaff);
 
 router.get('/', documentController.list);
