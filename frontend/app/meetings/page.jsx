@@ -483,6 +483,7 @@ function UploadModal({ open, onClose, form, errors, onChange, onFileChange, uplo
   const [memberOptions, setMemberOptions] = useState([]);
   const [memberSearchLoading, setMemberSearchLoading] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Fetch member options for the searchable selector
   const fetchMemberOptions = useCallback(async (query = '') => {
@@ -513,8 +514,22 @@ function UploadModal({ open, onClose, form, errors, onChange, onFileChange, uplo
     }
   }, [open, fetchMemberOptions]);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const dropdown = document.getElementById('member-dropdown');
+      const input = dropdown?.previousElementSibling;
+      if (dropdown && !dropdown.contains(e.target) && e.target !== input) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleMemberSearch = (query) => {
     setMemberSearchQuery(query);
+    setDropdownOpen(true);
     // Debounce the search
     clearTimeout(window.memberSearchTimeout);
     window.memberSearchTimeout = setTimeout(() => {
@@ -591,7 +606,7 @@ function UploadModal({ open, onClose, form, errors, onChange, onFileChange, uplo
                       </svg>
                     </div>
                   )}
-                  <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto rounded-xl border border-brand-200 bg-white shadow-lg hidden" 
+                  <div className={`absolute z-10 w-full mt-1 max-h-60 overflow-auto rounded-xl border border-brand-200 bg-white shadow-lg ${dropdownOpen ? '' : 'hidden'}`} 
                        id="member-dropdown"
                        role="listbox">
                     {memberOptions.map(member => (
