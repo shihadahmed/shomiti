@@ -103,6 +103,7 @@ async function sendDocumentNotifications(doc, actor, req) {
 
   if (doc.visibility === 'all') {
     // Case A: All Members - notify all active users except sender
+    // Using insertMany for bulk efficiency; createNotification is used for single notifications
     const users = await User.find({ _id: { $ne: actor._id }, isActive: true }).select('_id').lean();
     
     const notifications = users.map(user => ({
