@@ -12,6 +12,7 @@ const documentSchema = new mongoose.Schema(
       index: true,
     },
     member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', index: true },
+    mentionedMember: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', index: true },
     file: {
       // Cloudinary fields
       url: { type: String, required: true },
@@ -24,7 +25,7 @@ const documentSchema = new mongoose.Schema(
       width: Number,
       height: Number,
     },
-    visibility: { type: String, enum: ['staff', 'member'], default: 'staff' },
+    visibility: { type: String, enum: ['all', 'specific'], default: 'all' },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true },
