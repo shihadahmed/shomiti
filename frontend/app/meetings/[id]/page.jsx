@@ -174,7 +174,7 @@ export default function NoticeDetailPage() {
                   {document.member.code} - {document.member.fullName}
                 </span>
               )}
-              {/* Mentioned Member Badge - shown when visibility is 'specific' */}
+              {/* Mentioned Member Badge - shown when document.visibility === 'specific' (targeted notice) */}
               {document.mentionedMember && (
                 <span className="flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
                   <Icon name="userCheck" className="h-3.5 w-3.5 text-amber-600" />
