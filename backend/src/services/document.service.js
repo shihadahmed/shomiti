@@ -122,6 +122,7 @@ async function sendDocumentNotifications(doc, actor, req) {
     // Find the user linked to the mentioned member
     const mentionedUser = await User.findOne({ memberId: doc.mentionedMember, isActive: true }).select('_id').lean();
     
+    // SECURITY: Never send self-notification - check both sender and mentioned user
     if (mentionedUser && !mentionedUser._id.equals(actor._id)) {
       // Only send if mentioned user exists and is not the sender
       await createNotification({
