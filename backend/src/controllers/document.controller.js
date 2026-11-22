@@ -36,9 +36,14 @@ export const download = asyncHandler(async (req, res) => {
   return res.redirect(file.url);
 });
 
+export const getById = asyncHandler(async (req, res) => {
+  const document = await documentService.getDocumentById(req.params.id, req.user, req);
+  res.json({ success: true, data: { document } });
+});
+
 export const remove = asyncHandler(async (req, res) => {
   await documentService.deleteDocument(req.params.id, req.user, req);
   res.json({ success: true, data: { deleted: true } });
 });
 
-export default { list, myDocuments, upload, download, remove };
+export default { list, myDocuments, upload, download, getById, remove };
